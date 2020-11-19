@@ -20,28 +20,35 @@ pub fn input_handling(
     world: &mut legion::world::SubWorld,
     #[resource] keyboard_events: &mut resources::KeyBoardEventQueue,
 ) {
+    // This vector contains entities whose position is changed by the input event
     let mut to_move = Vec::new();
-    let mut players_query = <(&components::Player, &components::Position)>::query();
 
+    // Get all moveable entities
+    let mut moveables_query =
+        <(&components::Moveable, &components::Position, legion::Entity)>::query();
+    let moveables: collections::HashMap<(u8, u8), legion::Entity> = moveables_query
+        .iter(world)
+        .map(|(_m, position, entity)| ((position.x, position.y), *entity))
+        .collect();
+
+    // Get all immoveable entities
+    let mut immovables_query = <(
+        &components::Immovable,
+        &components::Position,
+        legion::Entity,
+    )>::query();
+    let immovables: collections::HashMap<(u8, u8), &legion::Entity> = immovables_query
+        .iter(world)
+        .map(|(_m, position, entity)| ((position.x, position.y), entity))
+        .collect();
+
+    // Iterate through all entities starting from the player's position on the game map
+    // and moving along the axis that is defined by the keyboard input, and check for each
+    // entity if it can be moved
+    let mut players_query = <(&components::Player, &components::Position)>::query();
     for (_p, player_position) in players_query.iter(world) {
         if let Some(keycode) = keyboard_events.keys_pressed.pop() {
-            let mut moveables_query =
-                <(&components::Moveable, &components::Position, legion::Entity)>::query();
-            let moveables: collections::HashMap<(u8, u8), legion::Entity> = moveables_query
-                .iter(world)
-                .map(|(_m, position, entity)| ((position.x, position.y), *entity))
-                .collect();
-
-            let mut immovables_query = <(
-                &components::Immovable,
-                &components::Position,
-                legion::Entity,
-            )>::query();
-            let immovables: collections::HashMap<(u8, u8), legion::Entity> = immovables_query
-                .iter(world)
-                .map(|(_m, position, entity)| ((position.x, position.y), *entity))
-                .collect();
-
+            // Determine the range and axis to move along base on the input
             let (start, end, is_xaxis) = match keycode {
                 keyboard::KeyCode::Up => (player_position.y, 0, false),
                 keyboard::KeyCode::Down => (player_position.y, MAP_HEIGHT, false),
@@ -64,8 +71,11 @@ pub fn input_handling(
                 };
 
                 match moveables.get(&pos) {
-                    Some(movable) => to_move.push((keycode, *movable)),
+                    // If encounter a movable entity, add it to list of moveable entities
+                    Some(movable) => to_move.push((keycode, movable)),
+                    // Otherwise, check if the entity is immovable
                     None => match immovables.get(&pos) {
+                        // Move nothing if encounter an immovable entity
                         Some(_) => to_move.clear(),
                         None => break,
                     },
@@ -75,7 +85,7 @@ pub fn input_handling(
     }
 
     for (keycode, movable) in to_move {
-        if let Ok(mut entry) = world.entry_mut(movable) {
+        if let Ok(mut entry) = world.entry_mut(*movable) {
             if let Ok(mut position) = entry.get_component_mut::<components::Position>() {
                 match keycode {
                     keyboard::KeyCode::Up => position.y = position.y.saturating_sub(1),

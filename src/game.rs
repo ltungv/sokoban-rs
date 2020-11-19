@@ -2,6 +2,7 @@ use ggez::event;
 use ggez::graphics::{self, Drawable};
 use ggez::input::keyboard;
 use ggez::mint;
+use ggez::timer;
 use legion::query::IntoQuery;
 
 use crate::components;
@@ -15,7 +16,10 @@ pub const TILE_WIDTH: f32 = 48.0;
 /// Tile's height when rendered to screen
 pub const TILE_HEIGHT: f32 = 48.0;
 
+/// Width of the grid system
 pub const MAP_WIDTH: u8 = 8;
+
+/// Height of the grid system
 pub const MAP_HEIGHT: u8 = 9;
 
 /// This structure holds access to the game's `World` and implements `EventHandler` to updates and
@@ -50,9 +54,12 @@ impl Game {
 
 impl event::EventHandler for Game {
     /// This method is run on each game tick to update the world's data
-    fn update(&mut self, _ctx: &mut ggez::Context) -> ggez::GameResult {
-        self.update_schedule
-            .execute(&mut self.world, &mut self.resources);
+    fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+        const FPS: u32 = 60;
+        while timer::check_update_time(ctx, FPS) {
+            self.update_schedule
+                .execute(&mut self.world, &mut self.resources);
+        }
         Ok(())
     }
 
