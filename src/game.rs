@@ -1,5 +1,4 @@
 use ggez::event;
-use ggez::graphics;
 use ggez::input::keyboard;
 use ggez::timer;
 
@@ -15,7 +14,7 @@ pub const TILE_WIDTH: f32 = 48.0;
 pub const TILE_HEIGHT: f32 = 48.0;
 
 /// Width of the grid system
-pub const MAP_WIDTH: u8 = 8;
+pub const MAP_WIDTH: u8 = 9;
 
 /// Height of the grid system
 pub const MAP_HEIGHT: u8 = 9;
@@ -37,9 +36,11 @@ impl Game {
 
         let mut resources = legion::Resources::default();
         resources.insert(resources::KeyBoardEventQueue::default());
+        resources.insert(resources::GamePlay::default());
 
         let update_schedule = legion::Schedule::builder()
             .add_system(systems::input_handling_system())
+            .add_system(systems::game_objective_system())
             .build();
 
         Ok(Self {
@@ -64,9 +65,7 @@ impl event::EventHandler for Game {
     /// This method is run on each game tick to render the entities to screen
     /// based on the world's data
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        graphics::clear(ctx, graphics::WHITE);
-        systems::render(ctx, &mut self.world);
-        graphics::present(ctx)
+        systems::render(ctx, &self.world, &self.resources)
     }
 
     /// Handle keydown event

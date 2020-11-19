@@ -10,10 +10,10 @@ mod resources;
 mod systems;
 
 /// Window's width
-pub const ARENA_WIDTH: f32 = 600.0;
+pub const ARENA_WIDTH: f32 = 720.0;
 
 /// Window's height
-pub const ARENA_HEIGHT: f32 = 600.0;
+pub const ARENA_HEIGHT: f32 = 640.0;
 
 /// The game will contains the following entities:
 /// + Moveable entities
@@ -41,15 +41,15 @@ fn main() -> ggez::GameResult {
         .unwrap();
 
     const MAP: &str = "\
-        N N W W W W W W
-        W W W . . . . W
-        W . . . B . . W
-        W . . . . . . W 
-        W . P . . . . W
-        W . . . . . . W
-        W . . S . . . W
-        W . . . . . . W
-        W W W W W W W W";
+        N N W W W W W W W
+        W W W . . . . . W
+        W . . . B . . . W
+        W . . . . . . . W 
+        W . P . . . . . W
+        W . . . . . . . W
+        W . . S . . . . W
+        W . . . . . . . W
+        W W W W W W W W W";
 
     let game = &mut game::Game::new(ctx, MAP)?;
     event::run(ctx, evts_loop, game)

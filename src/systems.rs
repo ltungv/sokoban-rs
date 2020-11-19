@@ -1,4 +1,4 @@
-use ggez::graphics::{self, Drawable};
+use ggez::graphics;
 use ggez::input::keyboard;
 use ggez::mint;
 use legion::query::IntoQuery;
@@ -11,6 +11,64 @@ use crate::components;
 use crate::game::{MAP_HEIGHT, MAP_WIDTH, TILE_HEIGHT, TILE_WIDTH};
 use crate::resources;
 
+pub fn render(
+    ctx: &mut ggez::Context,
+    world: &legion::World,
+    resources: &legion::Resources,
+) -> ggez::GameResult {
+    graphics::clear(ctx, graphics::WHITE);
+
+    // Go through the entities that can be rendered to screen and get their data
+    let mut renderables_query = <(&components::Position, &components::Renderable)>::query();
+    let mut renderables_data = renderables_query
+        .iter(world)
+        .collect::<Vec<(&components::Position, &components::Renderable)>>();
+    renderables_data.sort_by_key(|&k| k.0.z);
+
+    for (position, renderable) in renderables_data {
+        // draw position
+        let screen_dest = mint::Point2 {
+            x: position.x as f32 * TILE_WIDTH,
+            y: position.y as f32 * TILE_HEIGHT,
+        };
+        let mut draw_params = graphics::DrawParam::default().dest(screen_dest);
+
+        match renderable {
+            components::Renderable::Image(image) => {
+                // scale sprite to tile size
+                let renderable_dims = image.dimensions();
+                draw_params = draw_params.scale(mint::Vector2 {
+                    x: TILE_WIDTH / renderable_dims.w,
+                    y: TILE_HEIGHT / renderable_dims.h,
+                });
+                graphics::draw(ctx, image, draw_params)?;
+            }
+        }
+    }
+
+    if let Some(game_play) = resources.get::<resources::GamePlay>() {
+        draw_text(ctx, &game_play.state.to_string(), 525.0, 80.0)?;
+        draw_text(ctx, &game_play.steps_taken.to_string(), 525.0, 100.0)?;
+    }
+
+    graphics::present(ctx)
+}
+
+pub fn draw_text(ctx: &mut ggez::Context, text_string: &str, x: f32, y: f32) -> ggez::GameResult {
+    let text = graphics::Text::new(text_string);
+    let screen_dest = mint::Point2 { x, y };
+    let color = Some(graphics::Color::new(0.0, 0.0, 0.0, 1.0));
+    let dimensions = mint::Point2 { x: 0.0, y: 20.0 };
+
+    graphics::queue_text(ctx, &text, dimensions, color);
+    graphics::draw_queued_text(
+        ctx,
+        graphics::DrawParam::new().dest(screen_dest),
+        None,
+        graphics::FilterMode::Linear,
+    )
+}
+
 /// Drain the key pressed events queue and modify the player's sprite position
 /// based on the received keycode
 #[system]
@@ -21,6 +79,7 @@ use crate::resources;
 pub fn input_handling(
     world: &mut legion::world::SubWorld,
     #[resource] keyboard_events: &mut resources::KeyBoardEventQueue,
+    #[resource] gameplay: &mut resources::GamePlay,
 ) {
     // This vector contains entities whose position is changed by the input event
     let mut to_move = Vec::new();
@@ -76,14 +135,19 @@ pub fn input_handling(
                     // If encounter a movable entity, add it to list of moveable entities
                     Some(movable) => to_move.push((keycode, movable)),
                     // Otherwise, check if the entity is immovable
-                    None => match immovables.get(&pos) {
-                        // Move nothing if encounter an immovable entity
-                        Some(_) => to_move.clear(),
-                        None => break,
-                    },
+                    None => {
+                        if immovables.get(&pos).is_some() {
+                            to_move.clear();
+                        }
+                        break;
+                    }
                 }
             }
         }
+    }
+
+    if !to_move.is_empty() {
+        gameplay.steps_taken += 1;
     }
 
     for (keycode, movable) in to_move {
@@ -101,30 +165,26 @@ pub fn input_handling(
     }
 }
 
-pub fn render(ctx: &mut ggez::Context, world: &mut legion::World) {
-    // Go through the entities that can be rendered to screen and get their data
-    let mut renderables_query = <(&components::Position, &components::Renderable)>::query();
-    let mut renderables_data = renderables_query
+#[system]
+#[read_component(components::Box)]
+#[read_component(components::BoxSpot)]
+#[read_component(components::Position)]
+pub fn game_objective(
+    world: &mut legion::world::SubWorld,
+    #[resource] game_play: &mut resources::GamePlay,
+) {
+    let mut boxes_query = <(&components::Box, &components::Position)>::query();
+    let boxes: collections::HashSet<(u8, u8)> = boxes_query
         .iter(world)
-        .collect::<Vec<(&components::Position, &components::Renderable)>>();
-    renderables_data.sort_by_key(|&k| k.0.z);
+        .map(|(_b, position)| (position.x, position.y))
+        .collect();
 
-    for (position, renderable) in renderables_data {
-        // draw position
-        let screen_dest = mint::Point2 {
-            x: position.x as f32 * TILE_WIDTH,
-            y: position.y as f32 * TILE_HEIGHT,
-        };
-
-        let mut draw_params = graphics::DrawParam::default().dest(screen_dest);
-        if let Some(renderable_dims) = renderable.dimensions(ctx) {
-            // scale sprite to tile size
-            draw_params = draw_params.scale(mint::Vector2 {
-                x: TILE_WIDTH / renderable_dims.w,
-                y: TILE_HEIGHT / renderable_dims.h,
-            });
+    game_play.state = resources::GamePlayState::Playing;
+    let mut box_spots_query = <(&components::BoxSpot, &components::Position)>::query();
+    for (_b, box_spot_position) in box_spots_query.iter(world) {
+        if boxes.contains(&(box_spot_position.x, box_spot_position.y)) {
+            game_play.state = resources::GamePlayState::Won;
+            break;
         }
-
-        graphics::draw(ctx, renderable, draw_params).unwrap();
     }
 }
