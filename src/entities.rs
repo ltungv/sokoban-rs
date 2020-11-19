@@ -16,6 +16,7 @@ pub fn create_player(
 
     let player_entity = world.push((
         components::Player,
+        components::Moveable,
         components::Position {
             z: 10,
             ..player_pos
@@ -37,6 +38,7 @@ pub fn create_box(
 
     let box_entity = world.push((
         components::Box,
+        components::Moveable,
         components::Position { z: 10, ..box_pos },
         components::Renderable::Image(image),
     ));
@@ -55,6 +57,7 @@ pub fn create_wall(
 
     let wall_entity = world.push((
         components::Wall,
+        components::Immovable,
         components::Position { z: 10, ..wall_pos },
         components::Renderable::Image(image),
     ));

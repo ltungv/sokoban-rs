@@ -15,6 +15,9 @@ pub const TILE_WIDTH: f32 = 48.0;
 /// Tile's height when rendered to screen
 pub const TILE_HEIGHT: f32 = 48.0;
 
+pub const MAP_WIDTH: u8 = 8;
+pub const MAP_HEIGHT: u8 = 9;
+
 /// This structure holds access to the game's `World` and implements `EventHandler` to updates and
 /// render entities on each game tick
 pub struct Game {
@@ -34,7 +37,7 @@ impl Game {
         resources.insert(resources::KeyBoardEventQueue::default());
 
         let update_schedule = legion::Schedule::builder()
-            .add_system(systems::player_control_system())
+            .add_system(systems::input_handling_system())
             .build();
 
         Ok(Self {
@@ -95,15 +98,14 @@ impl event::EventHandler for Game {
         _keymods: keyboard::KeyMods,
         _repeat: bool,
     ) {
-        // QUIT
         if keycode == keyboard::KeyCode::Escape {
             event::quit(ctx);
         }
 
         // Push key code the the event queue
-        if let Some(mut keyboard_events) = self.resources.get_mut::<resources::KeyBoardEventQueue>()
-        {
-            keyboard_events.keys_pressed.push(keycode);
+        let maybe_keyboard_event_queue = self.resources.get_mut::<resources::KeyBoardEventQueue>();
+        if let Some(mut keyboard_event_queue) = maybe_keyboard_event_queue {
+            keyboard_event_queue.keys_pressed.push(keycode);
         };
     }
 }
@@ -114,6 +116,10 @@ fn load_map(ctx: &mut ggez::Context, world: &mut legion::World, map_str: &str) -
     let rows: Vec<&str> = map_str.split('\n').map(|x| x.trim()).collect();
     for (y, row) in rows.iter().enumerate() {
         let cols: Vec<&str> = row.split(' ').collect();
+        if rows.len() != MAP_HEIGHT as usize || cols.len() != MAP_WIDTH as usize {
+            panic!("Incorrect map dimensions");
+        }
+
         for (x, col) in cols.iter().enumerate() {
             let position = components::Position {
                 x: x as u8,
@@ -124,26 +130,26 @@ fn load_map(ctx: &mut ggez::Context, world: &mut legion::World, map_str: &str) -
             match *col {
                 // PLAYER
                 "P" => {
-                    let _ = entities::create_floor(ctx, world, position)?;
-                    let _ = entities::create_player(ctx, world, position)?;
+                    entities::create_floor(ctx, world, position)?;
+                    entities::create_player(ctx, world, position)?;
                 }
                 // BOX
                 "B" => {
-                    let _ = entities::create_floor(ctx, world, position)?;
-                    let _ = entities::create_box(ctx, world, position)?;
+                    entities::create_floor(ctx, world, position)?;
+                    entities::create_box(ctx, world, position)?;
                 }
                 // WALL
                 "W" => {
-                    let _ = entities::create_wall(ctx, world, position)?;
+                    entities::create_wall(ctx, world, position)?;
                 }
                 // BOX SPOT
                 "S" => {
-                    let _ = entities::create_floor(ctx, world, position)?;
-                    let _ = entities::create_box_spot(ctx, world, position)?;
+                    entities::create_floor(ctx, world, position)?;
+                    entities::create_box_spot(ctx, world, position)?;
                 }
                 // NO ITEM
                 "." => {
-                    let _ = entities::create_floor(ctx, world, position)?;
+                    entities::create_floor(ctx, world, position)?;
                 }
                 // NOTHING
                 "N" => {}

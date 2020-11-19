@@ -59,3 +59,9 @@ pub struct Wall;
 /// Marks an entity as a location where a box can be put into
 #[derive(Default)]
 pub struct BoxSpot;
+
+#[derive(Default)]
+pub struct Moveable;
+
+#[derive(Default)]
+pub struct Immovable;
