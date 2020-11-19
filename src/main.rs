@@ -4,10 +4,22 @@ use std::env;
 use std::path;
 
 mod components;
+mod entities;
 mod game;
 
 pub const ARENA_WIDTH: f32 = 600.0;
 pub const ARENA_HEIGHT: f32 = 600.0;
+
+const MAP: &str = "\
+N N W W W W W W
+W W W . . . . W
+W . . . B . . W
+W . . . . . . W 
+W . P . . . . W
+W . . . . . . W
+W . . S . . . W
+W . . . . . . W
+W W W W W W W W";
 
 /// The game will contains the following entities:
 /// + Moveable entities
@@ -34,6 +46,6 @@ fn main() -> ggez::GameResult {
         .build()
         .unwrap();
 
-    let game = &mut game::Game::new(ctx)?;
+    let game = &mut game::Game::new(ctx, MAP)?;
     event::run(ctx, evts_loop, game)
 }
