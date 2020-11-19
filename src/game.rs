@@ -9,7 +9,10 @@ use crate::entities;
 use crate::resources;
 use crate::systems;
 
+/// Tile's width when rendered to screen
 pub const TILE_WIDTH: f32 = 48.0;
+
+/// Tile's height when rendered to screen
 pub const TILE_HEIGHT: f32 = 48.0;
 
 /// This structure holds access to the game's `World` and implements `EventHandler` to updates and
@@ -63,6 +66,7 @@ impl event::EventHandler for Game {
         renderables_data.sort_by_key(|&k| k.0.z);
 
         for (position, renderable) in renderables_data {
+            // draw position
             let screen_dest = mint::Point2 {
                 x: position.x as f32 * TILE_WIDTH,
                 y: position.y as f32 * TILE_HEIGHT,
@@ -70,6 +74,7 @@ impl event::EventHandler for Game {
 
             let mut draw_params = graphics::DrawParam::default().dest(screen_dest);
             if let Some(renderable_dims) = renderable.dimensions(ctx) {
+                // scale sprite to tile size
                 draw_params = draw_params.scale(mint::Vector2 {
                     x: TILE_WIDTH / renderable_dims.w,
                     y: TILE_HEIGHT / renderable_dims.h,
@@ -82,6 +87,7 @@ impl event::EventHandler for Game {
         graphics::present(ctx)
     }
 
+    /// Handle keydown event
     fn key_down_event(
         &mut self,
         ctx: &mut ggez::Context,
@@ -89,10 +95,12 @@ impl event::EventHandler for Game {
         _keymods: keyboard::KeyMods,
         _repeat: bool,
     ) {
+        // QUIT
         if keycode == keyboard::KeyCode::Escape {
             event::quit(ctx);
         }
 
+        // Push key code the the event queue
         if let Some(mut keyboard_events) = self.resources.get_mut::<resources::KeyBoardEventQueue>()
         {
             keyboard_events.keys_pressed.push(keycode);
@@ -100,6 +108,8 @@ impl event::EventHandler for Game {
     }
 }
 
+/// Parse the map that is given as a string and create entities based on the characters
+/// in the map string
 fn load_map(ctx: &mut ggez::Context, world: &mut legion::World, map_str: &str) -> ggez::GameResult {
     let rows: Vec<&str> = map_str.split('\n').map(|x| x.trim()).collect();
     for (y, row) in rows.iter().enumerate() {
@@ -112,25 +122,32 @@ fn load_map(ctx: &mut ggez::Context, world: &mut legion::World, map_str: &str) -
             };
 
             match *col {
+                // PLAYER
                 "P" => {
                     let _ = entities::create_floor(ctx, world, position)?;
                     let _ = entities::create_player(ctx, world, position)?;
                 }
+                // BOX
                 "B" => {
                     let _ = entities::create_floor(ctx, world, position)?;
                     let _ = entities::create_box(ctx, world, position)?;
                 }
+                // WALL
                 "W" => {
                     let _ = entities::create_wall(ctx, world, position)?;
                 }
+                // BOX SPOT
                 "S" => {
                     let _ = entities::create_floor(ctx, world, position)?;
                     let _ = entities::create_box_spot(ctx, world, position)?;
                 }
+                // NO ITEM
                 "." => {
                     let _ = entities::create_floor(ctx, world, position)?;
                 }
+                // NOTHING
                 "N" => {}
+                // ERROR
                 c => panic!("Invalid map item {}", c),
             }
         }

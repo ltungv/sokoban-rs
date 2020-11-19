@@ -9,7 +9,10 @@ mod game;
 mod resources;
 mod systems;
 
+/// Window's width
 pub const ARENA_WIDTH: f32 = 600.0;
+
+/// Window's height
 pub const ARENA_HEIGHT: f32 = 600.0;
 
 /// The game will contains the following entities:
