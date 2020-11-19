@@ -1,9 +1,7 @@
 use ggez::event;
-use ggez::graphics::{self, Drawable};
+use ggez::graphics;
 use ggez::input::keyboard;
-use ggez::mint;
 use ggez::timer;
-use legion::query::IntoQuery;
 
 use crate::components;
 use crate::entities;
@@ -67,33 +65,7 @@ impl event::EventHandler for Game {
     /// based on the world's data
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, graphics::WHITE);
-
-        // Go through the entities that can be rendered to screen and get their data
-        let mut renderables_query = <(&components::Position, &components::Renderable)>::query();
-        let mut renderables_data = renderables_query
-            .iter(&self.world)
-            .collect::<Vec<(&components::Position, &components::Renderable)>>();
-        renderables_data.sort_by_key(|&k| k.0.z);
-
-        for (position, renderable) in renderables_data {
-            // draw position
-            let screen_dest = mint::Point2 {
-                x: position.x as f32 * TILE_WIDTH,
-                y: position.y as f32 * TILE_HEIGHT,
-            };
-
-            let mut draw_params = graphics::DrawParam::default().dest(screen_dest);
-            if let Some(renderable_dims) = renderable.dimensions(ctx) {
-                // scale sprite to tile size
-                draw_params = draw_params.scale(mint::Vector2 {
-                    x: TILE_WIDTH / renderable_dims.w,
-                    y: TILE_HEIGHT / renderable_dims.h,
-                });
-            }
-
-            graphics::draw(ctx, renderable, draw_params)?;
-        }
-
+        systems::render(ctx, &mut self.world);
         graphics::present(ctx)
     }
 
