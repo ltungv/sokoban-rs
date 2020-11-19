@@ -1,12 +1,14 @@
-use ggez::{event, graphics, mint};
+use ggez::event;
+use ggez::graphics::{self, Drawable};
+use ggez::mint;
 use legion::query::IntoQuery;
 
 use std::path;
 
 use crate::components;
 
-pub const TILE_WIDTH: f32 = 32.0;
-pub const TILE_HEIGHT: f32 = 32.0;
+pub const TILE_WIDTH: f32 = 48.0;
+pub const TILE_HEIGHT: f32 = 48.0;
 
 pub struct Game {
     world: legion::World,
@@ -15,13 +17,13 @@ pub struct Game {
 impl Game {
     pub fn new(ctx: &mut ggez::Context) -> ggez::GameResult<Self> {
         let mut world = legion::World::default();
-        for y in 0..4 {
-            create_floor(ctx, &mut world, components::Position { x: 0, y, z: 0 })?;
+        for x in 0..4 {
+            create_floor(ctx, &mut world, components::Position { x, y: 0, z: 0 })?;
         }
         create_wall(ctx, &mut world, components::Position { x: 0, y: 0, z: 0 })?;
-        create_box(ctx, &mut world, components::Position { x: 0, y: 1, z: 0 })?;
-        create_box_spot(ctx, &mut world, components::Position { x: 0, y: 2, z: 0 })?;
-        create_player(ctx, &mut world, components::Position { x: 0, y: 3, z: 0 })?;
+        create_box(ctx, &mut world, components::Position { x: 1, y: 0, z: 0 })?;
+        create_box_spot(ctx, &mut world, components::Position { x: 2, y: 0, z: 0 })?;
+        create_player(ctx, &mut world, components::Position { x: 3, y: 0, z: 0 })?;
         Ok(Self { world })
     }
 }
@@ -44,7 +46,14 @@ impl event::EventHandler for Game {
                 y: position.y as f32 * TILE_HEIGHT,
             };
 
-            let draw_params = graphics::DrawParam::default().dest(screen_dest);
+            let mut draw_params = graphics::DrawParam::default().dest(screen_dest);
+            if let Some(renderable_dims) = renderable.dimensions(ctx) {
+                draw_params = draw_params.scale(mint::Vector2 {
+                    x: TILE_WIDTH / renderable_dims.w,
+                    y: TILE_HEIGHT / renderable_dims.h,
+                });
+            }
+
             graphics::draw(ctx, renderable, draw_params)?;
         }
 
@@ -59,7 +68,9 @@ fn create_player(
     player_pos: components::Position,
 ) -> ggez::GameResult<legion::Entity> {
     let image_path = path::PathBuf::from("/images/player_1.png");
-    let image = graphics::Image::new(ctx, image_path)?;
+    let mut image = graphics::Image::new(ctx, image_path)?;
+    image.set_filter(graphics::FilterMode::Nearest);
+
     let player_entity = world.push((
         components::Player,
         components::Position {
@@ -78,7 +89,9 @@ fn create_box(
     box_pos: components::Position,
 ) -> ggez::GameResult<legion::Entity> {
     let image_path = path::PathBuf::from("/images/box_red_1.png");
-    let image = graphics::Image::new(ctx, image_path)?;
+    let mut image = graphics::Image::new(ctx, image_path)?;
+    image.set_filter(graphics::FilterMode::Nearest);
+
     let box_entity = world.push((
         components::Box,
         components::Position { z: 10, ..box_pos },
@@ -94,7 +107,9 @@ fn create_wall(
     wall_pos: components::Position,
 ) -> ggez::GameResult<legion::Entity> {
     let image_path = path::PathBuf::from("/images/wall.png");
-    let image = graphics::Image::new(ctx, image_path)?;
+    let mut image = graphics::Image::new(ctx, image_path)?;
+    image.set_filter(graphics::FilterMode::Nearest);
+
     let wall_entity = world.push((
         components::Wall,
         components::Position { z: 10, ..wall_pos },
@@ -110,7 +125,9 @@ fn create_box_spot(
     box_spot_pos: components::Position,
 ) -> ggez::GameResult<legion::Entity> {
     let image_path = path::PathBuf::from("/images/box_spot_red.png");
-    let image = graphics::Image::new(ctx, image_path)?;
+    let mut image = graphics::Image::new(ctx, image_path)?;
+    image.set_filter(graphics::FilterMode::Nearest);
+
     let box_spot_entity = world.push((
         components::BoxSpot,
         components::Position {
@@ -129,7 +146,9 @@ fn create_floor(
     floor_pos: components::Position,
 ) -> ggez::GameResult<legion::Entity> {
     let image_path = path::PathBuf::from("/images/floor.png");
-    let image = graphics::Image::new(ctx, image_path)?;
+    let mut image = graphics::Image::new(ctx, image_path)?;
+    image.set_filter(graphics::FilterMode::Nearest);
+
     let floor_entity = world.push((
         components::Position { z: 5, ..floor_pos },
         components::Renderable::Image(image),
