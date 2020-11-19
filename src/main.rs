@@ -19,9 +19,16 @@ struct Game {
 }
 
 impl Game {
-    fn new(_ctx: &mut ggez::Context) -> Self {
-        let world = legion::World::default();
-        Self { world }
+    fn new(ctx: &mut ggez::Context) -> ggez::GameResult<Self> {
+        let mut world = legion::World::default();
+        for y in 0..4 {
+            create_floor(ctx, &mut world, Position { x: 0, y, z: 0 })?;
+        }
+        create_wall(ctx, &mut world, Position { x: 0, y: 0, z: 0 })?;
+        create_box(ctx, &mut world, Position { x: 0, y: 1, z: 0 })?;
+        create_box_spot(ctx, &mut world, Position { x: 0, y: 2, z: 0 })?;
+        create_player(ctx, &mut world, Position { x: 0, y: 3, z: 0 })?;
+        Ok(Self { world })
     }
 }
 
@@ -31,6 +38,8 @@ impl event::EventHandler for Game {
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+        graphics::clear(ctx, graphics::WHITE);
+
         let mut query = <(&Position, &Renderable)>::query();
         let mut render_data: Vec<(&Position, &Renderable)> = query.iter(&self.world).collect();
         render_data.sort_by_key(|&k| k.0.z);
@@ -44,7 +53,7 @@ impl event::EventHandler for Game {
             graphics::draw(ctx, renderable, draw_params)?;
         }
 
-        Ok(())
+        graphics::present(ctx)
     }
 }
 
@@ -202,7 +211,7 @@ fn create_floor(
 ///     1. Wall:     mint::Point3, Renderable
 ///     2. Floor:    mint::Point3, Renderable
 ///     3. Box spot: mint::Point3, Renderable
-fn main() {
+fn main() -> ggez::GameResult {
     let resource_dir = if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
         let mut path = path::PathBuf::from(manifest_dir);
         path.push("resources");
@@ -219,10 +228,6 @@ fn main() {
         .build()
         .unwrap();
 
-    let game = &mut Game::new(ctx);
-    if let Err(e) = event::run(ctx, evts_loop, game) {
-        println!("Error encountered: {}", e);
-    } else {
-        println!("Game exited cleanly.");
-    }
+    let game = &mut Game::new(ctx)?;
+    event::run(ctx, evts_loop, game)
 }
