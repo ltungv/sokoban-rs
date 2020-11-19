@@ -10,15 +10,18 @@ pub const ARENA_HEIGHT: f32 = 600.0;
 // Game states
 //////////////////////////////////
 
-struct MainState;
+struct Game {
+    world: legion::World,
+}
 
-impl MainState {
+impl Game {
     fn new(_ctx: &mut ggez::Context) -> Self {
-        Self {}
+        let world = legion::World::default();
+        Self { world }
     }
 }
 
-impl event::EventHandler for MainState {
+impl event::EventHandler for Game {
     fn update(&mut self, _ctx: &mut ggez::Context) -> ggez::GameResult {
         Ok(())
     }
@@ -133,8 +136,8 @@ fn main() {
         .build()
         .unwrap();
 
-    let state = &mut MainState::new(ctx);
-    if let Err(e) = event::run(ctx, evts_loop, state) {
+    let game = &mut Game::new(ctx);
+    if let Err(e) = event::run(ctx, evts_loop, game) {
         println!("Error encountered: {}", e);
     } else {
         println!("Game exited cleanly.");
