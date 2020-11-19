@@ -12,17 +12,6 @@ mod systems;
 pub const ARENA_WIDTH: f32 = 600.0;
 pub const ARENA_HEIGHT: f32 = 600.0;
 
-const MAP: &str = "\
-N N W W W W W W
-W W W . . . . W
-W . . . B . . W
-W . . . . . . W 
-W . P . . . . W
-W . . . . . . W
-W . . S . . . W
-W . . . . . . W
-W W W W W W W W";
-
 /// The game will contains the following entities:
 /// + Moveable entities
 ///     1. Player: mint::Point3, Renderable, Moveable
@@ -47,6 +36,17 @@ fn main() -> ggez::GameResult {
         .add_resource_path(&resource_dir)
         .build()
         .unwrap();
+
+    const MAP: &str = "\
+        N N W W W W W W
+        W W W . . . . W
+        W . . . B . . W
+        W . . . . . . W 
+        W . P . . . . W
+        W . . . . . . W
+        W . . S . . . W
+        W . . . . . . W
+        W W W W W W W W";
 
     let game = &mut game::Game::new(ctx, MAP)?;
     event::run(ctx, evts_loop, game)
