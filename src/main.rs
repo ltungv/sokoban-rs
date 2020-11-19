@@ -6,6 +6,8 @@ use std::path;
 mod components;
 mod entities;
 mod game;
+mod resources;
+mod systems;
 
 pub const ARENA_WIDTH: f32 = 600.0;
 pub const ARENA_HEIGHT: f32 = 600.0;

@@ -3,35 +3,14 @@ use ggez::graphics::{self, Drawable};
 use ggez::input::keyboard;
 use ggez::mint;
 use legion::query::IntoQuery;
-use legion::system;
 
 use crate::components;
 use crate::entities;
+use crate::resources;
+use crate::systems;
 
 pub const TILE_WIDTH: f32 = 48.0;
 pub const TILE_HEIGHT: f32 = 48.0;
-
-#[derive(Default)]
-pub struct KeyBoardEventQueue {
-    pub keys_pressed: Vec<keyboard::KeyCode>,
-}
-
-#[system(for_each)]
-pub fn player_control(
-    _player: &components::Player,
-    position: &mut components::Position,
-    #[resource] keyboard_events: &mut KeyBoardEventQueue,
-) {
-    while let Some(keycode) = keyboard_events.keys_pressed.pop() {
-        match keycode {
-            keyboard::KeyCode::Right => position.x += 1,
-            keyboard::KeyCode::Down => position.y += 1,
-            keyboard::KeyCode::Left => position.x = position.x.saturating_sub(1),
-            keyboard::KeyCode::Up => position.y = position.y.saturating_sub(1),
-            _ => {}
-        }
-    }
-}
 
 /// This structure holds access to the game's `World` and implements `EventHandler` to updates and
 /// render entities on each game tick
@@ -49,10 +28,10 @@ impl Game {
         load_map(ctx, &mut world, map_str)?;
 
         let mut resources = legion::Resources::default();
-        resources.insert(KeyBoardEventQueue::default());
+        resources.insert(resources::KeyBoardEventQueue::default());
 
         let update_schedule = legion::Schedule::builder()
-            .add_system(player_control_system())
+            .add_system(systems::player_control_system())
             .build();
 
         Ok(Self {
@@ -114,7 +93,8 @@ impl event::EventHandler for Game {
             event::quit(ctx);
         }
 
-        if let Some(mut keyboard_events) = self.resources.get_mut::<KeyBoardEventQueue>() {
+        if let Some(mut keyboard_events) = self.resources.get_mut::<resources::KeyBoardEventQueue>()
+        {
             keyboard_events.keys_pressed.push(keycode);
         };
     }
