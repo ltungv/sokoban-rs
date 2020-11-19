@@ -31,13 +31,17 @@ pub fn create_box(
     ctx: &mut ggez::Context,
     world: &mut legion::World,
     box_pos: components::Position,
+    color: components::BoxColor,
 ) -> ggez::GameResult<legion::Entity> {
-    let image_path = path::PathBuf::from("/images/box_red_1.png");
+    let image_path = match color {
+        components::BoxColor::Red => path::PathBuf::from("/images/box_red_1.png"),
+        components::BoxColor::Blue => path::PathBuf::from("/images/box_blue_1.png"),
+    };
     let mut image = graphics::Image::new(ctx, image_path)?;
     image.set_filter(graphics::FilterMode::Nearest);
 
     let box_entity = world.push((
-        components::Box,
+        components::Box { color },
         components::Moveable,
         components::Position { z: 10, ..box_pos },
         components::Renderable::Image(image),
@@ -69,13 +73,17 @@ pub fn create_box_spot(
     ctx: &mut ggez::Context,
     world: &mut legion::World,
     box_spot_pos: components::Position,
+    color: components::BoxColor,
 ) -> ggez::GameResult<legion::Entity> {
-    let image_path = path::PathBuf::from("/images/box_spot_red.png");
+    let image_path = match color {
+        components::BoxColor::Red => path::PathBuf::from("/images/box_spot_red.png"),
+        components::BoxColor::Blue => path::PathBuf::from("/images/box_spot_blue.png"),
+    };
     let mut image = graphics::Image::new(ctx, image_path)?;
     image.set_filter(graphics::FilterMode::Nearest);
 
     let box_spot_entity = world.push((
-        components::BoxSpot,
+        components::BoxSpot { color },
         components::Position {
             z: 9,
             ..box_spot_pos

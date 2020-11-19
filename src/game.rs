@@ -112,18 +112,26 @@ fn load_map(ctx: &mut ggez::Context, world: &mut legion::World, map_str: &str) -
                     entities::create_player(ctx, world, position)?;
                 }
                 // BOX
-                "B" => {
+                "BB" => {
                     entities::create_floor(ctx, world, position)?;
-                    entities::create_box(ctx, world, position)?;
+                    entities::create_box(ctx, world, position, components::BoxColor::Blue)?;
+                }
+                "RB" => {
+                    entities::create_floor(ctx, world, position)?;
+                    entities::create_box(ctx, world, position, components::BoxColor::Red)?;
                 }
                 // WALL
                 "W" => {
                     entities::create_wall(ctx, world, position)?;
                 }
                 // BOX SPOT
-                "S" => {
+                "BS" => {
                     entities::create_floor(ctx, world, position)?;
-                    entities::create_box_spot(ctx, world, position)?;
+                    entities::create_box_spot(ctx, world, position, components::BoxColor::Blue)?;
+                }
+                "RS" => {
+                    entities::create_floor(ctx, world, position)?;
+                    entities::create_box_spot(ctx, world, position, components::BoxColor::Red)?;
                 }
                 // NO ITEM
                 "." => {

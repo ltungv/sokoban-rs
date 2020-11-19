@@ -12,17 +12,25 @@ pub type Position = mint::Point3<u8>;
 #[derive(Default)]
 pub struct Player;
 
+#[derive(PartialEq, Copy, Clone)]
+pub enum BoxColor {
+    Blue,
+    Red,
+}
+
 /// Marks an entity as a box
-#[derive(Default)]
-pub struct Box;
+pub struct Box {
+    pub color: BoxColor,
+}
 
 /// Marks an entity as a wall
 #[derive(Default)]
 pub struct Wall;
 
 /// Marks an entity as a location where a box can be put into
-#[derive(Default)]
-pub struct BoxSpot;
+pub struct BoxSpot {
+    pub color: BoxColor,
+}
 
 #[derive(Default)]
 pub struct Moveable;

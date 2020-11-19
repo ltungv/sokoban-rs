@@ -46,6 +46,7 @@ pub fn render(
         }
     }
 
+    // Show number of moves that have been taken and whether the player has won
     if let Some(game_play) = resources.get::<resources::GamePlay>() {
         draw_text(ctx, &game_play.state.to_string(), 525.0, 80.0)?;
         draw_text(ctx, &game_play.steps_taken.to_string(), 525.0, 100.0)?;
@@ -55,18 +56,11 @@ pub fn render(
 }
 
 pub fn draw_text(ctx: &mut ggez::Context, text_string: &str, x: f32, y: f32) -> ggez::GameResult {
-    let text = graphics::Text::new(text_string);
-    let screen_dest = mint::Point2 { x, y };
-    let color = Some(graphics::Color::new(0.0, 0.0, 0.0, 1.0));
-    let dimensions = mint::Point2 { x: 0.0, y: 20.0 };
-
-    graphics::queue_text(ctx, &text, dimensions, color);
-    graphics::draw_queued_text(
-        ctx,
-        graphics::DrawParam::new().dest(screen_dest),
-        None,
-        graphics::FilterMode::Linear,
-    )
+    let text = graphics::Text::new(
+        graphics::TextFragment::new(text_string).color(graphics::Color::new(0.0, 0.0, 0.0, 1.0)),
+    );
+    let dest = mint::Point2 { x, y };
+    graphics::draw(ctx, &text, graphics::DrawParam::new().dest(dest))
 }
 
 /// Drain the key pressed events queue and modify the player's sprite position
@@ -174,17 +168,23 @@ pub fn game_objective(
     #[resource] game_play: &mut resources::GamePlay,
 ) {
     let mut boxes_query = <(&components::Box, &components::Position)>::query();
-    let boxes: collections::HashSet<(u8, u8)> = boxes_query
+    let boxes: collections::HashMap<(u8, u8), components::BoxColor> = boxes_query
         .iter(world)
-        .map(|(_b, position)| (position.x, position.y))
+        .map(|(b, position)| ((position.x, position.y), b.color))
         .collect();
 
     game_play.state = resources::GamePlayState::Playing;
     let mut box_spots_query = <(&components::BoxSpot, &components::Position)>::query();
-    for (_b, box_spot_position) in box_spots_query.iter(world) {
-        if boxes.contains(&(box_spot_position.x, box_spot_position.y)) {
-            game_play.state = resources::GamePlayState::Won;
-            break;
+    for (box_spot, box_spot_position) in box_spots_query.iter(world) {
+        if let Some(color) = boxes.get(&(box_spot_position.x, box_spot_position.y)) {
+            if *color == box_spot.color {
+                continue;
+            } else {
+                return;
+            }
+        } else {
+            return;
         }
     }
+    game_play.state = resources::GamePlayState::Won;
 }
