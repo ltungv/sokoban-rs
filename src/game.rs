@@ -1,7 +1,9 @@
 use ggez::event;
 use ggez::graphics::{self, Drawable};
+use ggez::input::keyboard;
 use ggez::mint;
 use legion::query::IntoQuery;
+use legion::system;
 
 use crate::components;
 use crate::entities;
@@ -9,31 +11,79 @@ use crate::entities;
 pub const TILE_WIDTH: f32 = 48.0;
 pub const TILE_HEIGHT: f32 = 48.0;
 
+#[derive(Default)]
+pub struct KeyBoardEventQueue {
+    pub keys_pressed: Vec<keyboard::KeyCode>,
+}
+
+#[system(for_each)]
+pub fn player_control(
+    _player: &components::Player,
+    position: &mut components::Position,
+    #[resource] keyboard_events: &mut KeyBoardEventQueue,
+) {
+    while let Some(keycode) = keyboard_events.keys_pressed.pop() {
+        match keycode {
+            keyboard::KeyCode::Right => position.x += 1,
+            keyboard::KeyCode::Down => position.y += 1,
+            keyboard::KeyCode::Left => position.x = position.x.saturating_sub(1),
+            keyboard::KeyCode::Up => position.y = position.y.saturating_sub(1),
+            _ => {}
+        }
+    }
+}
+
+/// This structure holds access to the game's `World` and implements `EventHandler` to updates and
+/// render entities on each game tick
 pub struct Game {
     world: legion::World,
+    resources: legion::Resources,
+    update_schedule: legion::Schedule,
 }
 
 impl Game {
+    /// Create a new game state based on the given context and initializes entities based on the
+    /// given map represented in string
     pub fn new(ctx: &mut ggez::Context, map_str: &str) -> ggez::GameResult<Self> {
         let mut world = legion::World::default();
         load_map(ctx, &mut world, map_str)?;
-        Ok(Self { world })
+
+        let mut resources = legion::Resources::default();
+        resources.insert(KeyBoardEventQueue::default());
+
+        let update_schedule = legion::Schedule::builder()
+            .add_system(player_control_system())
+            .build();
+
+        Ok(Self {
+            world,
+            resources,
+            update_schedule,
+        })
     }
 }
 
 impl event::EventHandler for Game {
+    /// This method is run on each game tick to update the world's data
     fn update(&mut self, _ctx: &mut ggez::Context) -> ggez::GameResult {
+        self.update_schedule
+            .execute(&mut self.world, &mut self.resources);
         Ok(())
     }
 
+    /// This method is run on each game tick to render the entities to screen
+    /// based on the world's data
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, graphics::WHITE);
 
-        let mut query = <(&components::Position, &components::Renderable)>::query();
-        let mut render_data: Vec<(&components::Position, &components::Renderable)> =
-            query.iter(&self.world).collect();
-        render_data.sort_by_key(|&k| k.0.z);
-        for (position, renderable) in render_data {
+        // Go through the entities that can be rendered to screen and get their data
+        let mut renderables_query = <(&components::Position, &components::Renderable)>::query();
+        let mut renderables_data = renderables_query
+            .iter(&self.world)
+            .collect::<Vec<(&components::Position, &components::Renderable)>>();
+        renderables_data.sort_by_key(|&k| k.0.z);
+
+        for (position, renderable) in renderables_data {
             let screen_dest = mint::Point2 {
                 x: position.x as f32 * TILE_WIDTH,
                 y: position.y as f32 * TILE_HEIGHT,
@@ -51,6 +101,22 @@ impl event::EventHandler for Game {
         }
 
         graphics::present(ctx)
+    }
+
+    fn key_down_event(
+        &mut self,
+        ctx: &mut ggez::Context,
+        keycode: keyboard::KeyCode,
+        _keymods: keyboard::KeyMods,
+        _repeat: bool,
+    ) {
+        if keycode == keyboard::KeyCode::Escape {
+            event::quit(ctx);
+        }
+
+        if let Some(mut keyboard_events) = self.resources.get_mut::<KeyBoardEventQueue>() {
+            keyboard_events.keys_pressed.push(keycode);
+        };
     }
 }
 
@@ -75,7 +141,6 @@ fn load_map(ctx: &mut ggez::Context, world: &mut legion::World, map_str: &str) -
                     let _ = entities::create_box(ctx, world, position)?;
                 }
                 "W" => {
-                    let _ = entities::create_floor(ctx, world, position)?;
                     let _ = entities::create_wall(ctx, world, position)?;
                 }
                 "S" => {
