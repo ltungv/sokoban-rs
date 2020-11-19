@@ -6,36 +6,25 @@ use std::path;
 pub const ARENA_WIDTH: f32 = 600.0;
 pub const ARENA_HEIGHT: f32 = 600.0;
 
-/// The game will contains the following entities:
-/// + Moveable entities
-///     1. Player: mint::Point3, Renderable, Moveable
-///     2. Box:    mint::Point3, Renderable, Moveable
-/// + Immoveable entities:
-///     1. Wall:     mint::Point3, Renderable
-///     2. Floor:    mint::Point3, Renderable
-///     3. Box spot: mint::Point3, Renderable
-fn main() {
-    let resource_dir = if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
-        let mut path = path::PathBuf::from(manifest_dir);
-        path.push("resources");
-        path
-    } else {
-        path::PathBuf::from("./resources")
-    };
-    println!("Resource dir: {:?}", resource_dir);
+//////////////////////////////////
+// Game states
+//////////////////////////////////
 
-    let (ctx, evts_loop) = &mut ggez::ContextBuilder::new("sokoban", "tlv")
-        .window_setup(conf::WindowSetup::default().title("Sokoban"))
-        .window_mode(conf::WindowMode::default().dimensions(ARENA_WIDTH, ARENA_HEIGHT))
-        .add_resource_path(&resource_dir)
-        .build()
-        .unwrap();
+struct MainState;
 
-    let state = &mut MainState::new(ctx);
-    if let Err(e) = event::run(ctx, evts_loop, state) {
-        println!("Error encountered: {}", e);
-    } else {
-        println!("Game exited cleanly.");
+impl MainState {
+    fn new(_ctx: &mut ggez::Context) -> Self {
+        Self {}
+    }
+}
+
+impl event::EventHandler for MainState {
+    fn update(&mut self, _ctx: &mut ggez::Context) -> ggez::GameResult {
+        Ok(())
+    }
+
+    fn draw(&mut self, _ctx: &mut ggez::Context) -> ggez::GameResult {
+        Ok(())
     }
 }
 
@@ -43,19 +32,25 @@ fn main() {
 // Components
 //////////////////////////////////
 
+/// Position of the entity on the game's grid
 type Position = mint::Point3<u8>;
 
+/// Path to the image that represents the entity
 struct Renderable(path::PathBuf);
 
+/// Marks an entity as a player
 #[derive(Default)]
 struct Player;
 
+/// Marks an entity as a box
 #[derive(Default)]
 struct Box;
 
+/// Marks an entity as a wall
 #[derive(Default)]
 struct Wall;
 
+/// Marks an entity as a location where a box can be put into
 #[derive(Default)]
 struct BoxSpot;
 
@@ -113,24 +108,35 @@ fn create_floor(world: &mut legion::World, floor_pos: Position) -> legion::Entit
     ))
 }
 
-//////////////////////////////////
-// Game states
-//////////////////////////////////
+/// The game will contains the following entities:
+/// + Moveable entities
+///     1. Player: mint::Point3, Renderable, Moveable
+///     2. Box:    mint::Point3, Renderable, Moveable
+/// + Immoveable entities:
+///     1. Wall:     mint::Point3, Renderable
+///     2. Floor:    mint::Point3, Renderable
+///     3. Box spot: mint::Point3, Renderable
+fn main() {
+    let resource_dir = if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
+        let mut path = path::PathBuf::from(manifest_dir);
+        path.push("resources");
+        path
+    } else {
+        path::PathBuf::from("./resources")
+    };
+    println!("Resource dir: {:?}", resource_dir);
 
-struct MainState;
+    let (ctx, evts_loop) = &mut ggez::ContextBuilder::new("sokoban", "tlv")
+        .window_setup(conf::WindowSetup::default().title("Sokoban"))
+        .window_mode(conf::WindowMode::default().dimensions(ARENA_WIDTH, ARENA_HEIGHT))
+        .add_resource_path(&resource_dir)
+        .build()
+        .unwrap();
 
-impl MainState {
-    fn new(_ctx: &mut ggez::Context) -> Self {
-        Self {}
-    }
-}
-
-impl event::EventHandler for MainState {
-    fn update(&mut self, _ctx: &mut ggez::Context) -> ggez::GameResult {
-        Ok(())
-    }
-
-    fn draw(&mut self, _ctx: &mut ggez::Context) -> ggez::GameResult {
-        Ok(())
+    let state = &mut MainState::new(ctx);
+    if let Err(e) = event::run(ctx, evts_loop, state) {
+        println!("Error encountered: {}", e);
+    } else {
+        println!("Game exited cleanly.");
     }
 }
