@@ -24,12 +24,13 @@ pub const ARENA_HEIGHT: f32 = 640.0;
 ///     2. Floor:    mint::Point3, Renderable
 ///     3. Box spot: mint::Point3, Renderable
 fn main() -> ggez::GameResult {
-    let resource_dir = if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
-        let mut path = path::PathBuf::from(manifest_dir);
-        path.push("resources");
-        path
-    } else {
-        path::PathBuf::from("./resources")
+    let resource_dir = match env::var("CARGO_MANIFEST_DIR") {
+        Ok(manifest_dir) => {
+            let mut path = path::PathBuf::from(manifest_dir);
+            path.push("resources");
+            path
+        }
+        Err(_) => path::PathBuf::from("./resources"),
     };
     println!("Resource dir: {:?}", resource_dir);
 

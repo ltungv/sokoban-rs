@@ -12,28 +12,25 @@ use crate::game::{MAP_HEIGHT, MAP_WIDTH, TILE_HEIGHT, TILE_WIDTH};
 use crate::resources;
 
 /// Draw all renderable entities and information in some resources to screen
-pub fn render(
+pub fn render_entities(
     ctx: &mut ggez::Context,
     world: &legion::World,
     resources: &legion::Resources,
 ) -> ggez::GameResult {
-    graphics::clear(ctx, graphics::WHITE);
+    // Renderable components to be queried
+    type RenderableArchetype<'a> = (
+        &'a components::Renderable<graphics::Image>,
+        &'a components::Position,
+        &'a components::Scale,
+    );
     // Query for getting renderable entities
-    let mut renderables_query = <(
-        &components::Position,
-        &components::Renderable<graphics::Image>,
-        &components::Scale,
-    )>::query();
-    // Go through the entities that can be rendered to screen and get their data
-    let mut renderables_data = renderables_query.iter(world).collect::<Vec<(
-        &components::Position,
-        &components::Renderable<graphics::Image>,
-        &components::Scale,
-    )>>();
-    renderables_data.sort_by_key(|&k| k.0.z);
+    let mut renderables_data = <RenderableArchetype>::query()
+        .iter(world)
+        .collect::<Vec<RenderableArchetype>>();
+    renderables_data.sort_by_key(|&k| k.1.z);
 
     // Show all renderables
-    for (position, renderable, scale) in renderables_data {
+    for (renderable, position, scale) in renderables_data {
         let screen_dest = mint::Point2 {
             x: position.x as f32 * TILE_WIDTH,
             y: position.y as f32 * TILE_HEIGHT,
@@ -48,32 +45,37 @@ pub fn render(
 
         // Determine the keyframe of the animation based on the time the has passed since the game
         // was first started
-        let image_idx = match renderable.kind() {
+        let drawable = renderable.drawable(match renderable.kind() {
             components::RenderableKind::Static => 0,
             components::RenderableKind::Animated => {
                 ((time_alive.as_millis() % 2000) / 500) as usize
             }
-        };
-        graphics::draw(ctx, &renderable.drawable(image_idx), draw_params)?;
+        });
+        graphics::draw(ctx, &drawable, draw_params)?;
     }
-
-    // Show number of moves that have been taken and whether the player has won
-    if let Some(game_play) = resources.get::<resources::GamePlay>() {
-        let x = TILE_WIDTH * MAP_WIDTH as f32 + 100.0;
-        let y = (TILE_HEIGHT * MAP_HEIGHT as f32) / 2.0;
-        draw_text(ctx, &game_play.state.to_string(), x, y - 10.0)?;
-        draw_text(ctx, &game_play.steps_taken.to_string(), x, y + 10.0)?;
-    }
-    graphics::present(ctx)
+    Ok(())
 }
 
-/// Draw the given string that the given location
-fn draw_text(ctx: &mut ggez::Context, text_string: &str, x: f32, y: f32) -> ggez::GameResult {
-    let text = graphics::Text::new(
-        graphics::TextFragment::new(text_string).color(graphics::Color::new(0.0, 0.0, 0.0, 1.0)),
-    );
-    let dest = mint::Point2 { x, y };
-    graphics::draw(ctx, &text, graphics::DrawParam::new().dest(dest))
+pub fn render_gameplay_data(
+    ctx: &mut ggez::Context,
+    resources: &legion::Resources,
+) -> ggez::GameResult {
+    // Show number of moves that have been taken and whether the player has won
+    if let Some(game_play) = resources.get::<resources::GamePlay>() {
+        let text_color = graphics::Color::new(0.0, 0.0, 0.0, 1.0);
+        let mut text = graphics::Text::default();
+        text.add(graphics::TextFragment::new(game_play.state.to_string()).color(text_color))
+            .add(graphics::TextFragment::new("\n"))
+            .add(graphics::TextFragment::new(game_play.steps_taken.to_string()).color(text_color));
+
+        let text_draw_dest = mint::Point2 {
+            x: (TILE_WIDTH * MAP_WIDTH as f32 - text.dimensions(ctx).0 as f32) / 2.0,
+            y: (TILE_HEIGHT * MAP_HEIGHT as f32 - text.dimensions(ctx).1 as f32) / 2.0,
+        };
+        let draw_params = graphics::DrawParam::new().dest(text_draw_dest);
+        graphics::draw(ctx, &text, draw_params)?;
+    }
+    Ok(())
 }
 
 /// Consume key pressed events from queue and modify the player's sprite position
@@ -86,36 +88,38 @@ fn draw_text(ctx: &mut ggez::Context, text_string: &str, x: f32, y: f32) -> ggez
 pub fn input_handling(
     world: &mut legion::world::SubWorld,
     #[resource] key_pressed_events: &mut resources::KeyPressedEventQueue,
-    #[resource] gameplay: &mut resources::GamePlay,
     #[resource] gameplay_events: &mut resources::GamePlayEventQueue,
+    #[resource] gameplay: &mut resources::GamePlay,
 ) {
-    // This vector contains entities whose position is changed by the input event
-    let mut to_move = Vec::new();
+    type PositionEntityHashMap = collections::HashMap<(u8, u8), legion::Entity>;
+    type MovableArchetype<'a> = (
+        &'a components::Movable,
+        &'a components::Position,
+        legion::Entity,
+    );
+    type ImmovableArchetype<'a> = (
+        &'a components::Immovable,
+        &'a components::Position,
+        legion::Entity,
+    );
+    type PlayerArchetype<'a> = (&'a components::Player, &'a components::Position);
 
     // Get all movable entities
-    let mut movables_query =
-        <(&components::Movable, &components::Position, legion::Entity)>::query();
-    let movables: collections::HashMap<(u8, u8), legion::Entity> = movables_query
+    let movables = <MovableArchetype>::query()
         .iter(world)
         .map(|(_m, position, entity)| ((position.x, position.y), *entity))
-        .collect();
-
+        .collect::<PositionEntityHashMap>();
     // Get all immovable entities
-    let mut immovables_query = <(
-        &components::Immovable,
-        &components::Position,
-        legion::Entity,
-    )>::query();
-    let immovables: collections::HashMap<(u8, u8), &legion::Entity> = immovables_query
+    let immovables = <ImmovableArchetype>::query()
         .iter(world)
-        .map(|(_m, position, entity)| ((position.x, position.y), entity))
-        .collect();
+        .map(|(_m, position, entity)| ((position.x, position.y), *entity))
+        .collect::<PositionEntityHashMap>();
 
     // Iterate through all entities starting from the player's position on the game map
     // and moving along the axis that is defined by the keyboard input, and check for each
     // entity if it can be moved
-    let mut players_query = <(&components::Player, &components::Position)>::query();
-    for (_p, player_position) in players_query.iter(world) {
+    let mut to_move = Vec::new();
+    for (_p, player_position) in <PlayerArchetype>::query().iter(world) {
         if let Some(keycode) = key_pressed_events.queue.pop() {
             // Determine the range and axis to move along base on the input
             let (start, end, is_xaxis) = match keycode {

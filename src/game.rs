@@ -1,9 +1,9 @@
 use ggez::audio;
 use ggez::event;
+use ggez::graphics;
 use ggez::input::keyboard;
 use ggez::timer;
 
-use crate::components;
 use crate::entities;
 use crate::resources;
 use crate::systems;
@@ -33,7 +33,7 @@ impl Game {
     /// given map represented in string
     pub fn new(ctx: &mut ggez::Context, map_str: &str) -> ggez::GameResult<Self> {
         let mut world = legion::World::default();
-        load_map(ctx, &mut world, map_str)?;
+        entities::load_from_map_str(ctx, &mut world, map_str)?;
 
         let mut resources = legion::Resources::default();
         resources.insert(resources::Time::default());
@@ -73,7 +73,10 @@ impl event::EventHandler for Game {
     /// This method is run on each game tick to render the entities to screen
     /// based on the world's data
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        systems::render(ctx, &self.world, &self.resources)
+        graphics::clear(ctx, graphics::WHITE);
+        systems::render_entities(ctx, &self.world, &self.resources)?;
+        systems::render_gameplay_data(ctx, &self.resources)?;
+        graphics::present(ctx)
     }
 
     /// Handle keydown event
@@ -106,63 +109,4 @@ fn load_sounds(ctx: &mut ggez::Context) -> ggez::GameResult<resources::AudioStor
         audio_store.sounds.insert(sound_name, sound_source);
     }
     Ok(audio_store)
-}
-
-/// Parse the map that is given as a string and create entities based on the characters
-/// in the map string
-fn load_map(ctx: &mut ggez::Context, world: &mut legion::World, map_str: &str) -> ggez::GameResult {
-    let rows: Vec<&str> = map_str.split('\n').map(|x| x.trim()).collect();
-    for (y, row) in rows.iter().enumerate() {
-        let cols: Vec<&str> = row.split(' ').collect();
-        if rows.len() != MAP_HEIGHT as usize || cols.len() != MAP_WIDTH as usize {
-            panic!("Incorrect map dimensions");
-        }
-
-        for (x, col) in cols.iter().enumerate() {
-            let position = components::Position {
-                x: x as u8,
-                y: y as u8,
-                z: 0, // this will be modified when the entity is created
-            };
-
-            match *col {
-                // BOX
-                "BB" => {
-                    entities::create_floor(ctx, world, position)?;
-                    entities::create_box(ctx, world, position, components::BoxColor::Blue)?;
-                }
-                "RB" => {
-                    entities::create_floor(ctx, world, position)?;
-                    entities::create_box(ctx, world, position, components::BoxColor::Red)?;
-                }
-                // BOX SPOT
-                "BS" => {
-                    entities::create_floor(ctx, world, position)?;
-                    entities::create_box_spot(ctx, world, position, components::BoxColor::Blue)?;
-                }
-                "RS" => {
-                    entities::create_floor(ctx, world, position)?;
-                    entities::create_box_spot(ctx, world, position, components::BoxColor::Red)?;
-                }
-                // PLAYER
-                "P" => {
-                    entities::create_floor(ctx, world, position)?;
-                    entities::create_player(ctx, world, position)?;
-                }
-                // WALL
-                "W" => {
-                    entities::create_wall(ctx, world, position)?;
-                }
-                // NO ITEM
-                "." => {
-                    entities::create_floor(ctx, world, position)?;
-                }
-                // NOTHING
-                "N" => {}
-                // ERROR
-                c => panic!("Invalid map item {}", c),
-            }
-        }
-    }
-    Ok(())
 }

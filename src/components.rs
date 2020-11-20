@@ -11,9 +11,20 @@ pub struct Renderable<T> {
     drawables: Vec<T>,
 }
 
+impl<T> Renderable<T> {
+    /// Return whether the `Renderable` is static or animated
+    pub fn kind(&self) -> RenderableKind {
+        match self.drawables.len() {
+            0 => panic!("Invalid RenderableKind"),
+            1 => RenderableKind::Static,
+            _ => RenderableKind::Animated,
+        }
+    }
+}
+
 impl<D> Renderable<D>
 where
-    D: graphics::Drawable + Clone,
+    D: graphics::Drawable,
 {
     /// Create a new `Drawable` components that can not be animated
     pub fn new_static(drawable: D) -> Self {
@@ -26,16 +37,12 @@ where
     pub fn new_animated(drawables: Vec<D>) -> Self {
         Self { drawables }
     }
+}
 
-    /// Return whether the `Renderable` is static or animated
-    pub fn kind(&self) -> RenderableKind {
-        match self.drawables.len() {
-            0 => panic!("Invalid RenderableKind"),
-            1 => RenderableKind::Static,
-            _ => RenderableKind::Animated,
-        }
-    }
-
+impl<D> Renderable<D>
+where
+    D: graphics::Drawable + Clone,
+{
     /// Return the `Drawable` object at the given index
     pub fn drawable(&self, idx: usize) -> D {
         self.drawables[idx % self.drawables.len()].clone()

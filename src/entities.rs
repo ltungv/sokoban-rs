@@ -3,7 +3,70 @@ use ggez::graphics;
 use std::path;
 
 use crate::components;
-use crate::game::{TILE_HEIGHT, TILE_WIDTH};
+use crate::game::{MAP_HEIGHT, MAP_WIDTH, TILE_HEIGHT, TILE_WIDTH};
+
+/// Parse the map that is given as a string and create entities based on the characters
+/// in the map string
+pub fn load_from_map_str(
+    ctx: &mut ggez::Context,
+    world: &mut legion::World,
+    map_str: &str,
+) -> ggez::GameResult {
+    let rows: Vec<&str> = map_str.split('\n').map(|x| x.trim()).collect();
+    for (y, row) in rows.iter().enumerate() {
+        let cols: Vec<&str> = row.split(' ').collect();
+        if rows.len() != MAP_HEIGHT as usize || cols.len() != MAP_WIDTH as usize {
+            panic!("Incorrect map dimensions");
+        }
+
+        for (x, col) in cols.iter().enumerate() {
+            let position = components::Position {
+                x: x as u8,
+                y: y as u8,
+                z: 0, // this will be modified when the entity is created
+            };
+
+            match *col {
+                // BOX
+                "BB" => {
+                    create_floor(ctx, world, position)?;
+                    create_box(ctx, world, position, components::BoxColor::Blue)?;
+                }
+                "RB" => {
+                    create_floor(ctx, world, position)?;
+                    create_box(ctx, world, position, components::BoxColor::Red)?;
+                }
+                // BOX SPOT
+                "BS" => {
+                    create_floor(ctx, world, position)?;
+                    create_box_spot(ctx, world, position, components::BoxColor::Blue)?;
+                }
+                "RS" => {
+                    create_floor(ctx, world, position)?;
+                    create_box_spot(ctx, world, position, components::BoxColor::Red)?;
+                }
+                // PLAYER
+                "P" => {
+                    create_floor(ctx, world, position)?;
+                    create_player(ctx, world, position)?;
+                }
+                // WALL
+                "W" => {
+                    create_wall(ctx, world, position)?;
+                }
+                // NO ITEM
+                "." => {
+                    create_floor(ctx, world, position)?;
+                }
+                // NOTHING
+                "N" => {}
+                // ERROR
+                c => panic!("Invalid map item {}", c),
+            }
+        }
+    }
+    Ok(())
+}
 
 /// Creates a player entity
 pub fn create_player(
