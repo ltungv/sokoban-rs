@@ -38,8 +38,7 @@ fn main() -> ggez::GameResult {
         .window_setup(conf::WindowSetup::default().title("Sokoban"))
         .window_mode(conf::WindowMode::default().dimensions(ARENA_WIDTH, ARENA_HEIGHT))
         .add_resource_path(&resource_dir)
-        .build()
-        .unwrap();
+        .build()?;
 
     const MAP: &str = "\
         N N W W W W W W W

@@ -17,41 +17,44 @@ pub fn render_entities(
     world: &legion::World,
     resources: &legion::Resources,
 ) -> ggez::GameResult {
-    // Renderable components to be queried
-    type RenderableArchetype<'a> = (
-        &'a components::Renderable<graphics::Image>,
-        &'a components::Position,
-        &'a components::Scale,
-    );
-    // Query for getting renderable entities
-    let mut renderables_data = <RenderableArchetype>::query()
-        .iter(world)
-        .collect::<Vec<RenderableArchetype>>();
-    renderables_data.sort_by_key(|&k| k.1.z);
+    if let Some(drawable_store) = resources.get::<resources::DrawableStore>() {
+        // Renderable components to be queried
+        type RenderableArchetype<'a> = (&'a components::Renderable, &'a components::Position);
+        // Query for getting renderable entities
+        let mut renderables_data = <RenderableArchetype>::query()
+            .iter(world)
+            .collect::<Vec<RenderableArchetype>>();
+        renderables_data.sort_by_key(|&k| k.1.z);
 
-    // Show all renderables
-    for (renderable, position, scale) in renderables_data {
-        let screen_dest = mint::Point2 {
-            x: position.x as f32 * TILE_WIDTH,
-            y: position.y as f32 * TILE_HEIGHT,
-        };
-        let draw_params = graphics::DrawParam::default()
-            .dest(screen_dest)
-            .scale(*scale);
-        let time_alive = match resources.get::<resources::Time>() {
-            Some(time) => time.alive,
-            None => std::time::Duration::default(),
-        };
+        // Show all renderables
+        for (renderable, position) in renderables_data {
+            let time_alive = match resources.get::<resources::Time>() {
+                Some(time) => time.alive,
+                None => std::time::Duration::default(),
+            };
 
-        // Determine the keyframe of the animation based on the time the has passed since the game
-        // was first started
-        let drawable = renderable.drawable(match renderable.kind() {
-            components::RenderableKind::Static => 0,
-            components::RenderableKind::Animated => {
-                ((time_alive.as_millis() % 2000) / 500) as usize
+            // Determine the keyframe of the animation based on the time the has passed since the game
+            // was first started
+            let image_path = renderable.path(match renderable.kind() {
+                components::RenderableKind::Static => 0,
+                components::RenderableKind::Animated => {
+                    ((time_alive.as_millis() % 2000) / 500) as usize
+                }
+            });
+
+            if let Some(image) = drawable_store.get_image(image_path) {
+                let draw_params = graphics::DrawParam::default()
+                    .scale(mint::Vector2 {
+                        x: TILE_WIDTH / image.width() as f32,
+                        y: TILE_HEIGHT / image.height() as f32,
+                    })
+                    .dest(mint::Point2 {
+                        x: position.x as f32 * TILE_WIDTH,
+                        y: position.y as f32 * TILE_HEIGHT,
+                    });
+                graphics::draw(ctx, image, draw_params)?;
             }
-        });
-        graphics::draw(ctx, &drawable, draw_params)?;
+        }
     }
     Ok(())
 }
@@ -66,10 +69,21 @@ pub fn render_gameplay_data(
         let mut text = graphics::Text::default();
         text.add(graphics::TextFragment::new(game_play.state.to_string()).color(text_color))
             .add(graphics::TextFragment::new("\n"))
-            .add(graphics::TextFragment::new(game_play.steps_taken.to_string()).color(text_color));
+            .add(
+                graphics::TextFragment::new(format!(
+                    "Moves: {}",
+                    game_play.steps_taken.to_string()
+                ))
+                .color(text_color),
+            )
+            .add(graphics::TextFragment::new("\n"))
+            .add(
+                graphics::TextFragment::new(format!("FPS: {:.2}", ggez::timer::fps(ctx)))
+                    .color(text_color),
+            );
 
         let text_draw_dest = mint::Point2 {
-            x: (TILE_WIDTH * MAP_WIDTH as f32 - text.dimensions(ctx).0 as f32) / 2.0,
+            x: TILE_WIDTH * MAP_WIDTH as f32 + 50.0,
             y: (TILE_HEIGHT * MAP_HEIGHT as f32 - text.dimensions(ctx).1 as f32) / 2.0,
         };
         let draw_params = graphics::DrawParam::new().dest(text_draw_dest);
@@ -229,7 +243,7 @@ pub fn consume_gameplay_events(
     let mut new_events = Vec::new();
     for event in gameplay_events.queue.drain(..) {
         match event {
-            resources::GamePlayEvent::HitObstacle => audio_store.play_sound("wall"),
+            resources::GamePlayEvent::HitObstacle => audio_store.play_sound("/sounds/wall.wav"),
             resources::GamePlayEvent::EntityMoved(entity) => {
                 if let Ok(entry) = world.entry_ref(entity) {
                     if let Ok(the_box) = entry.get_component::<components::Box>() {
@@ -253,9 +267,9 @@ pub fn consume_gameplay_events(
             }
             resources::GamePlayEvent::BoxSpacedOnSpot(is_same_color) => {
                 audio_store.play_sound(if is_same_color {
-                    "correct"
+                    "/sounds/correct.wav"
                 } else {
-                    "incorrect"
+                    "/sounds/incorrect.wav"
                 })
             }
         }

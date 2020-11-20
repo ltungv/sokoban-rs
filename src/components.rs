@@ -1,4 +1,4 @@
-use ggez::{graphics, mint};
+use ggez::mint;
 
 /// Determines whether an entity can be animated
 pub enum RenderableKind {
@@ -7,53 +7,40 @@ pub enum RenderableKind {
 }
 
 /// Contains a list of objects that can be drawn to screen to represent an entity
-pub struct Renderable<T> {
-    drawables: Vec<T>,
+pub struct Renderable {
+    paths: Vec<String>,
 }
 
-impl<T> Renderable<T> {
+impl Renderable {
+    /// Create a new `Drawable` components that can not be animated
+    pub fn new_static(path: &str) -> Self {
+        Self {
+            paths: vec![path.to_string()],
+        }
+    }
+
+    /// Create a new `Drawable` components that can be animated using the list of sprites
+    pub fn new_animated(paths: Vec<String>) -> Self {
+        Self { paths }
+    }
+
     /// Return whether the `Renderable` is static or animated
     pub fn kind(&self) -> RenderableKind {
-        match self.drawables.len() {
+        match self.paths.len() {
             0 => panic!("Invalid RenderableKind"),
             1 => RenderableKind::Static,
             _ => RenderableKind::Animated,
         }
     }
-}
 
-impl<D> Renderable<D>
-where
-    D: graphics::Drawable,
-{
-    /// Create a new `Drawable` components that can not be animated
-    pub fn new_static(drawable: D) -> Self {
-        Self {
-            drawables: vec![drawable],
-        }
-    }
-
-    /// Create a new `Drawable` components that can be animated using the list of sprites
-    pub fn new_animated(drawables: Vec<D>) -> Self {
-        Self { drawables }
-    }
-}
-
-impl<D> Renderable<D>
-where
-    D: graphics::Drawable + Clone,
-{
     /// Return the `Drawable` object at the given index
-    pub fn drawable(&self, idx: usize) -> D {
-        self.drawables[idx % self.drawables.len()].clone()
+    pub fn path(&self, idx: usize) -> &str {
+        &self.paths[idx % self.paths.len()]
     }
 }
 
 /// Determines the position of an entity on the game map
 pub type Position = mint::Point3<u8>;
-
-/// Determines the scaling of an entity when being rendered to screeen
-pub type Scale = mint::Vector2<f32>;
 
 /// Determines the color of a `Box` or `BoxSpot`
 #[derive(PartialEq)]

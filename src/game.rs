@@ -1,4 +1,3 @@
-use ggez::audio;
 use ggez::event;
 use ggez::graphics;
 use ggez::input::keyboard;
@@ -20,6 +19,26 @@ pub const MAP_WIDTH: u8 = 9;
 /// Height of the grid system
 pub const MAP_HEIGHT: u8 = 9;
 
+const SOUNDS: &[&str] = &[
+    "/sounds/wall.wav",
+    "/sounds/correct.wav",
+    "/sounds/incorrect.wav",
+];
+
+const IMAGES: &[&str] = &[
+    "/images/box_blue_1.png",
+    "/images/box_blue_2.png",
+    "/images/box_red_1.png",
+    "/images/box_red_2.png",
+    "/images/box_spot_blue.png",
+    "/images/box_spot_red.png",
+    "/images/floor.png",
+    "/images/player_1.png",
+    "/images/player_2.png",
+    "/images/player_3.png",
+    "/images/wall.png",
+];
+
 /// This structure holds access to the game's `World` and implements `EventHandler` to updates and
 /// render entities on each game tick
 pub struct Game {
@@ -33,14 +52,24 @@ impl Game {
     /// given map represented in string
     pub fn new(ctx: &mut ggez::Context, map_str: &str) -> ggez::GameResult<Self> {
         let mut world = legion::World::default();
-        entities::load_from_map_str(ctx, &mut world, map_str)?;
+        entities::load_from_map_str(&mut world, map_str)?;
+
+        let mut audio_store = resources::AudioStore::default();
+        load_sounds(ctx, &mut audio_store, SOUNDS)?;
+
+        let mut drawable_store = resources::DrawableStore::default();
+        load_images(ctx, &mut drawable_store, IMAGES)?;
 
         let mut resources = legion::Resources::default();
         resources.insert(resources::Time::default());
-        resources.insert(resources::GamePlay::default());
+        resources.insert(resources::GamePlay {
+            state: resources::GamePlayState::Playing,
+            steps_taken: 0,
+        });
         resources.insert(resources::KeyPressedEventQueue::default());
         resources.insert(resources::GamePlayEventQueue::default());
-        resources.insert(load_sounds(ctx)?);
+        resources.insert(audio_store);
+        resources.insert(drawable_store);
 
         let update_schedule = legion::Schedule::builder()
             .add_system(systems::input_handling_system())
@@ -99,14 +128,24 @@ impl event::EventHandler for Game {
     }
 }
 
-fn load_sounds(ctx: &mut ggez::Context) -> ggez::GameResult<resources::AudioStore> {
-    let mut audio_store = resources::AudioStore::default();
-    let sounds = ["correct", "incorrect", "wall"];
-    for sound in sounds.iter() {
-        let sound_name = sound.to_string();
-        let sound_path = format!("/sounds/{}.wav", sound_name);
-        let sound_source = audio::Source::new(ctx, sound_path)?;
-        audio_store.sounds.insert(sound_name, sound_source);
+fn load_sounds(
+    ctx: &mut ggez::Context,
+    audio_store: &mut resources::AudioStore,
+    sounds: &[&str],
+) -> ggez::GameResult {
+    for sound_path in sounds.iter() {
+        audio_store.add_sound(ctx, sound_path)?;
     }
-    Ok(audio_store)
+    Ok(())
+}
+
+fn load_images(
+    ctx: &mut ggez::Context,
+    drawable_store: &mut resources::DrawableStore,
+    images: &[&str],
+) -> ggez::GameResult {
+    for image_path in images.iter() {
+        drawable_store.add_image(ctx, image_path, graphics::FilterMode::Nearest)?;
+    }
+    Ok(())
 }
