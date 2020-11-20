@@ -1528,6 +1528,7 @@ name = "overly-complicated-sokoban"
 version = "0.1.0"
 dependencies = [
  "ggez",
+ "itertools",
  "legion",
 ]
 

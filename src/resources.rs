@@ -2,7 +2,7 @@ use ggez::audio::{self, SoundSource};
 use ggez::graphics;
 use ggez::input::keyboard;
 
-use std::collections;
+use std::collections as colls;
 use std::time;
 
 /// Queue of keyboard events
@@ -55,7 +55,7 @@ pub struct GamePlayEventQueue {
 /// Mapping to the audio file
 #[derive(Default)]
 pub struct AudioStore {
-    sounds: collections::HashMap<String, audio::Source>,
+    sounds: colls::HashMap<String, audio::Source>,
 }
 
 impl AudioStore {
@@ -76,7 +76,7 @@ impl AudioStore {
 /// Mapping to the image
 #[derive(Default)]
 pub struct DrawableStore {
-    images: collections::HashMap<String, graphics::Image>,
+    images: colls::HashMap<String, graphics::Image>,
 }
 
 impl DrawableStore {

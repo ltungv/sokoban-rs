@@ -1,11 +1,14 @@
 use ggez::graphics;
+use ggez::graphics::spritebatch;
 use ggez::input::keyboard;
 use ggez::mint;
+use itertools::Itertools;
 use legion::query::IntoQuery;
 use legion::system;
 use legion::world::EntityStore;
 
-use std::collections;
+use std::cmp;
+use std::collections as colls;
 
 use crate::components;
 use crate::game::{MAP_HEIGHT, MAP_WIDTH, TILE_HEIGHT, TILE_WIDTH};
@@ -21,38 +24,55 @@ pub fn render_entities(
         // Renderable components to be queried
         type RenderableArchetype<'a> = (&'a components::Renderable, &'a components::Position);
         // Query for getting renderable entities
-        let mut renderables_data = <RenderableArchetype>::query()
+        let renderable_data = <RenderableArchetype>::query()
             .iter(world)
             .collect::<Vec<RenderableArchetype>>();
-        renderables_data.sort_by_key(|&k| k.1.z);
+        // Iterate each of the renderables, determine which image path should be rendered
+        // at which draw params, and then add that to the rendering_batches.
+        let mut renderable_batches =
+            colls::HashMap::<u8, colls::HashMap<String, Vec<graphics::DrawParam>>>::new();
 
-        // Show all renderables
-        for (renderable, position) in renderables_data {
+        for (renderable, position) in renderable_data {
+            // Load the image
             let time_alive = match resources.get::<resources::Time>() {
                 Some(time) => time.alive,
                 None => std::time::Duration::default(),
             };
-
-            // Determine the keyframe of the animation based on the time the has passed since the game
-            // was first started
             let image_path = renderable.path(match renderable.kind() {
                 components::RenderableKind::Static => 0,
                 components::RenderableKind::Animated => {
                     ((time_alive.as_millis() % 2000) / 500) as usize
                 }
             });
+            // Add to rendering batches
+            let draw_params = graphics::DrawParam::default().dest(mint::Point2 {
+                x: position.x as f32 * TILE_WIDTH,
+                y: position.y as f32 * TILE_HEIGHT,
+            });
+            renderable_batches
+                .entry(position.z)
+                .or_default()
+                .entry(image_path.to_string())
+                .or_default()
+                .push(draw_params);
+        }
 
-            if let Some(image) = drawable_store.get_image(image_path) {
-                let draw_params = graphics::DrawParam::default()
-                    .scale(mint::Vector2 {
-                        x: TILE_WIDTH / image.width() as f32,
-                        y: TILE_HEIGHT / image.height() as f32,
-                    })
-                    .dest(mint::Point2 {
-                        x: position.x as f32 * TILE_WIDTH,
-                        y: position.y as f32 * TILE_HEIGHT,
-                    });
-                graphics::draw(ctx, image, draw_params)?;
+        for (_z, group) in renderable_batches
+            .iter()
+            .sorted_by(|a, b| cmp::Ord::cmp(&a.0, &b.0))
+        {
+            for (image_path, draw_params) in group {
+                if let Some(image) = drawable_store.get_image(image_path) {
+                    let mut sprite_batch = spritebatch::SpriteBatch::new(image.clone());
+                    for draw_param in draw_params.iter() {
+                        sprite_batch.add(draw_param.scale(mint::Vector2 {
+                            x: TILE_WIDTH / image.width() as f32,
+                            y: TILE_HEIGHT / image.height() as f32,
+                        }));
+                    }
+                    graphics::draw(ctx, &sprite_batch, graphics::DrawParam::new())
+                        .expect("expected render");
+                }
             }
         }
     }
@@ -105,7 +125,7 @@ pub fn input_handling(
     #[resource] gameplay_events: &mut resources::GamePlayEventQueue,
     #[resource] gameplay: &mut resources::GamePlay,
 ) {
-    type PositionEntityHashMap = collections::HashMap<(u8, u8), legion::Entity>;
+    type PositionEntityHashMap = colls::HashMap<(u8, u8), legion::Entity>;
     type MovableArchetype<'a> = (
         &'a components::Movable,
         &'a components::Position,
@@ -209,7 +229,7 @@ pub fn game_objective(
     #[resource] game_play: &mut resources::GamePlay,
 ) {
     let mut boxes_query = <(&components::Box, &components::Position)>::query();
-    let boxes: collections::HashMap<(u8, u8), &components::Box> = boxes_query
+    let boxes: colls::HashMap<(u8, u8), &components::Box> = boxes_query
         .iter(world)
         .map(|(b, position)| ((position.x, position.y), b))
         .collect();
@@ -250,7 +270,7 @@ pub fn consume_gameplay_events(
                         if let Ok(box_position) = entry.get_component::<components::Position>() {
                             let mut box_spots_query =
                                 <(&components::BoxSpot, &components::Position)>::query();
-                            let box_spots: collections::HashMap<(u8, u8), &components::BoxSpot> =
+                            let box_spots: colls::HashMap<(u8, u8), &components::BoxSpot> =
                                 box_spots_query
                                     .iter(world)
                                     .map(|(b, position)| ((position.x, position.y), b))

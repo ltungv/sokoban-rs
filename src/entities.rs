@@ -155,7 +155,7 @@ pub fn create_floor(
     // Create a floor entity
     let floor_entity = world.push((
         components::Position { z: 5, ..floor_pos },
-        components::Renderable::new_static("images/floor.png"),
+        components::Renderable::new_static("/images/floor.png"),
     ));
     Ok(floor_entity)
 }

@@ -11,9 +11,8 @@ mod systems;
 
 /// Window's width
 pub const ARENA_WIDTH: f32 = 720.0;
-
 /// Window's height
-pub const ARENA_HEIGHT: f32 = 640.0;
+pub const ARENA_HEIGHT: f32 = game::MAP_HEIGHT as f32 * game::TILE_HEIGHT;
 
 /// The game will contains the following entities:
 /// + Moveable entities

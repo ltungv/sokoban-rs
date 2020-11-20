@@ -9,15 +9,15 @@ use crate::systems;
 
 /// Tile's width when rendered to screen
 pub const TILE_WIDTH: f32 = 48.0;
-
 /// Tile's height when rendered to screen
 pub const TILE_HEIGHT: f32 = 48.0;
 
 /// Width of the grid system
 pub const MAP_WIDTH: u8 = 9;
-
 /// Height of the grid system
 pub const MAP_HEIGHT: u8 = 9;
+
+const FPS: u32 = 60;
 
 const SOUNDS: &[&str] = &[
     "/sounds/wall.wav",
@@ -88,7 +88,6 @@ impl Game {
 impl event::EventHandler for Game {
     /// This method is run on each game tick to update the world's data
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        const FPS: u32 = 60;
         while timer::check_update_time(ctx, FPS) {
             if let Some(mut time) = self.resources.get_mut::<resources::Time>() {
                 time.alive += timer::delta(ctx);
