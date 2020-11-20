@@ -1,3 +1,4 @@
+use ggez::audio;
 use ggez::event;
 use ggez::input::keyboard;
 use ggez::timer;
@@ -35,12 +36,16 @@ impl Game {
         load_map(ctx, &mut world, map_str)?;
 
         let mut resources = legion::Resources::default();
-        resources.insert(resources::KeyBoardEventQueue::default());
+        resources.insert(resources::Time::default());
         resources.insert(resources::GamePlay::default());
+        resources.insert(resources::KeyPressedEventQueue::default());
+        resources.insert(resources::GamePlayEventQueue::default());
+        resources.insert(load_sounds(ctx)?);
 
         let update_schedule = legion::Schedule::builder()
             .add_system(systems::input_handling_system())
             .add_system(systems::game_objective_system())
+            .add_system(systems::consume_gameplay_events_system())
             .build();
 
         Ok(Self {
@@ -56,6 +61,9 @@ impl event::EventHandler for Game {
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         const FPS: u32 = 60;
         while timer::check_update_time(ctx, FPS) {
+            if let Some(mut time) = self.resources.get_mut::<resources::Time>() {
+                time.alive += timer::delta(ctx);
+            }
             self.update_schedule
                 .execute(&mut self.world, &mut self.resources);
         }
@@ -81,11 +89,23 @@ impl event::EventHandler for Game {
         }
 
         // Push key code the the event queue
-        let maybe_keyboard_event_queue = self.resources.get_mut::<resources::KeyBoardEventQueue>();
-        if let Some(mut keyboard_event_queue) = maybe_keyboard_event_queue {
-            keyboard_event_queue.keys_pressed.push(keycode);
+        let key_pressed_events = self.resources.get_mut::<resources::KeyPressedEventQueue>();
+        if let Some(mut key_pressed_events) = key_pressed_events {
+            key_pressed_events.queue.push(keycode);
         };
     }
+}
+
+fn load_sounds(ctx: &mut ggez::Context) -> ggez::GameResult<resources::AudioStore> {
+    let mut audio_store = resources::AudioStore::default();
+    let sounds = ["correct", "incorrect", "wall"];
+    for sound in sounds.iter() {
+        let sound_name = sound.to_string();
+        let sound_path = format!("/sounds/{}.wav", sound_name);
+        let sound_source = audio::Source::new(ctx, sound_path)?;
+        audio_store.sounds.insert(sound_name, sound_source);
+    }
+    Ok(audio_store)
 }
 
 /// Parse the map that is given as a string and create entities based on the characters
@@ -106,11 +126,6 @@ fn load_map(ctx: &mut ggez::Context, world: &mut legion::World, map_str: &str) -
             };
 
             match *col {
-                // PLAYER
-                "P" => {
-                    entities::create_floor(ctx, world, position)?;
-                    entities::create_player(ctx, world, position)?;
-                }
                 // BOX
                 "BB" => {
                     entities::create_floor(ctx, world, position)?;
@@ -120,10 +135,6 @@ fn load_map(ctx: &mut ggez::Context, world: &mut legion::World, map_str: &str) -
                     entities::create_floor(ctx, world, position)?;
                     entities::create_box(ctx, world, position, components::BoxColor::Red)?;
                 }
-                // WALL
-                "W" => {
-                    entities::create_wall(ctx, world, position)?;
-                }
                 // BOX SPOT
                 "BS" => {
                     entities::create_floor(ctx, world, position)?;
@@ -132,6 +143,15 @@ fn load_map(ctx: &mut ggez::Context, world: &mut legion::World, map_str: &str) -
                 "RS" => {
                     entities::create_floor(ctx, world, position)?;
                     entities::create_box_spot(ctx, world, position, components::BoxColor::Red)?;
+                }
+                // PLAYER
+                "P" => {
+                    entities::create_floor(ctx, world, position)?;
+                    entities::create_player(ctx, world, position)?;
+                }
+                // WALL
+                "W" => {
+                    entities::create_wall(ctx, world, position)?;
                 }
                 // NO ITEM
                 "." => {

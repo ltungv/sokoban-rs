@@ -3,6 +3,7 @@ use ggez::graphics;
 use std::path;
 
 use crate::components;
+use crate::game::{TILE_HEIGHT, TILE_WIDTH};
 
 /// Creates a player entity
 pub fn create_player(
@@ -10,18 +11,27 @@ pub fn create_player(
     world: &mut legion::World,
     player_pos: components::Position,
 ) -> ggez::GameResult<legion::Entity> {
-    let image_path = path::PathBuf::from("/images/player_1.png");
-    let mut image = graphics::Image::new(ctx, image_path)?;
-    image.set_filter(graphics::FilterMode::Nearest);
+    let mut animations = Vec::new();
+    for i in 1..4 {
+        let image_path = path::PathBuf::from(format!("/images/player_{}.png", i));
+        let mut image = graphics::Image::new(ctx, image_path)?;
+        image.set_filter(graphics::FilterMode::Nearest);
+        animations.push(image);
+    }
 
+    let image_dims = animations[0].dimensions();
     let player_entity = world.push((
         components::Player,
-        components::Moveable,
+        components::Movable,
         components::Position {
             z: 10,
             ..player_pos
         },
-        components::Renderable::Image(image),
+        components::Scale {
+            x: TILE_WIDTH / image_dims.w,
+            y: TILE_HEIGHT / image_dims.h,
+        },
+        components::Renderable::new_animated(animations),
     ));
     Ok(player_entity)
 }
@@ -33,18 +43,29 @@ pub fn create_box(
     box_pos: components::Position,
     color: components::BoxColor,
 ) -> ggez::GameResult<legion::Entity> {
-    let image_path = match color {
-        components::BoxColor::Red => path::PathBuf::from("/images/box_red_1.png"),
-        components::BoxColor::Blue => path::PathBuf::from("/images/box_blue_1.png"),
-    };
-    let mut image = graphics::Image::new(ctx, image_path)?;
-    image.set_filter(graphics::FilterMode::Nearest);
+    let mut animations = Vec::new();
+    for i in 1..3 {
+        let image_path = match color {
+            components::BoxColor::Red => path::PathBuf::from(format!("/images/box_red_{}.png", i)),
+            components::BoxColor::Blue => {
+                path::PathBuf::from(format!("/images/box_blue_{}.png", i))
+            }
+        };
+        let mut image = graphics::Image::new(ctx, image_path)?;
+        image.set_filter(graphics::FilterMode::Nearest);
+        animations.push(image);
+    }
 
+    let image_dims = animations[0].dimensions();
     let box_entity = world.push((
         components::Box { color },
-        components::Moveable,
+        components::Movable,
         components::Position { z: 10, ..box_pos },
-        components::Renderable::Image(image),
+        components::Scale {
+            x: TILE_WIDTH / image_dims.w,
+            y: TILE_HEIGHT / image_dims.h,
+        },
+        components::Renderable::new_animated(animations),
     ));
     Ok(box_entity)
 }
@@ -59,11 +80,16 @@ pub fn create_wall(
     let mut image = graphics::Image::new(ctx, image_path)?;
     image.set_filter(graphics::FilterMode::Nearest);
 
+    let image_dims = image.dimensions();
     let wall_entity = world.push((
         components::Wall,
         components::Immovable,
         components::Position { z: 10, ..wall_pos },
-        components::Renderable::Image(image),
+        components::Scale {
+            x: TILE_WIDTH / image_dims.w,
+            y: TILE_HEIGHT / image_dims.h,
+        },
+        components::Renderable::new_static(image),
     ));
     Ok(wall_entity)
 }
@@ -82,13 +108,18 @@ pub fn create_box_spot(
     let mut image = graphics::Image::new(ctx, image_path)?;
     image.set_filter(graphics::FilterMode::Nearest);
 
+    let image_dims = image.dimensions();
     let box_spot_entity = world.push((
         components::BoxSpot { color },
         components::Position {
             z: 9,
             ..box_spot_pos
         },
-        components::Renderable::Image(image),
+        components::Scale {
+            x: TILE_WIDTH / image_dims.w,
+            y: TILE_HEIGHT / image_dims.h,
+        },
+        components::Renderable::new_static(image),
     ));
     Ok(box_spot_entity)
 }
@@ -103,9 +134,14 @@ pub fn create_floor(
     let mut image = graphics::Image::new(ctx, image_path)?;
     image.set_filter(graphics::FilterMode::Nearest);
 
+    let image_dims = image.dimensions();
     let floor_entity = world.push((
         components::Position { z: 5, ..floor_pos },
-        components::Renderable::Image(image),
+        components::Scale {
+            x: TILE_WIDTH / image_dims.w,
+            y: TILE_HEIGHT / image_dims.h,
+        },
+        components::Renderable::new_static(image),
     ));
     Ok(floor_entity)
 }
