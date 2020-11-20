@@ -11,6 +11,7 @@ pub fn create_player(
     world: &mut legion::World,
     player_pos: components::Position,
 ) -> ggez::GameResult<legion::Entity> {
+    // Load the sprites that are used for animation
     let mut animations = Vec::new();
     for i in 1..4 {
         let image_path = path::PathBuf::from(format!("/images/player_{}.png", i));
@@ -18,8 +19,9 @@ pub fn create_player(
         image.set_filter(graphics::FilterMode::Nearest);
         animations.push(image);
     }
-
     let image_dims = animations[0].dimensions();
+
+    // Create a player entity
     let player_entity = world.push((
         components::Player,
         components::Movable,
@@ -43,6 +45,7 @@ pub fn create_box(
     box_pos: components::Position,
     color: components::BoxColor,
 ) -> ggez::GameResult<legion::Entity> {
+    // Load the sprites that are used for animation
     let mut animations = Vec::new();
     for i in 1..3 {
         let image_path = match color {
@@ -55,8 +58,9 @@ pub fn create_box(
         image.set_filter(graphics::FilterMode::Nearest);
         animations.push(image);
     }
-
     let image_dims = animations[0].dimensions();
+
+    // Create a new box entity
     let box_entity = world.push((
         components::Box { color },
         components::Movable,
@@ -76,11 +80,13 @@ pub fn create_wall(
     world: &mut legion::World,
     wall_pos: components::Position,
 ) -> ggez::GameResult<legion::Entity> {
+    // Load static sprite
     let image_path = path::PathBuf::from("/images/wall.png");
     let mut image = graphics::Image::new(ctx, image_path)?;
     image.set_filter(graphics::FilterMode::Nearest);
-
     let image_dims = image.dimensions();
+
+    // Create a wall entity
     let wall_entity = world.push((
         components::Wall,
         components::Immovable,
@@ -101,14 +107,16 @@ pub fn create_box_spot(
     box_spot_pos: components::Position,
     color: components::BoxColor,
 ) -> ggez::GameResult<legion::Entity> {
+    // Load static sprite
     let image_path = match color {
         components::BoxColor::Red => path::PathBuf::from("/images/box_spot_red.png"),
         components::BoxColor::Blue => path::PathBuf::from("/images/box_spot_blue.png"),
     };
     let mut image = graphics::Image::new(ctx, image_path)?;
     image.set_filter(graphics::FilterMode::Nearest);
-
     let image_dims = image.dimensions();
+
+    // Create a box spot entity
     let box_spot_entity = world.push((
         components::BoxSpot { color },
         components::Position {
@@ -130,11 +138,13 @@ pub fn create_floor(
     world: &mut legion::World,
     floor_pos: components::Position,
 ) -> ggez::GameResult<legion::Entity> {
+    // Load static sprite
     let image_path = path::PathBuf::from("/images/floor.png");
     let mut image = graphics::Image::new(ctx, image_path)?;
     image.set_filter(graphics::FilterMode::Nearest);
-
     let image_dims = image.dimensions();
+
+    // Create a floor entity
     let floor_entity = world.push((
         components::Position { z: 5, ..floor_pos },
         components::Scale {
