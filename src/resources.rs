@@ -5,54 +5,58 @@ use ggez::input::keyboard;
 use std::collections as colls;
 use std::time;
 
-/// Queue of keyboard events
-#[derive(Default)]
-pub struct KeyPressedEventQueue {
-    pub queue: Vec<keyboard::KeyCode>,
+#[derive(Debug, Default)]
+pub struct Time {
+    pub alive: time::Duration,
 }
 
-/// Determines whether the player has won the game
+#[derive(Debug)]
 pub enum GamePlayState {
     Playing,
     Won,
 }
 
 impl std::fmt::Display for GamePlayState {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        fmt.write_str(match self {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(match self {
             GamePlayState::Playing => "Playing",
             GamePlayState::Won => "Won",
-        })?;
-        Ok(())
+        })
     }
 }
 
-/// State of the game
-pub struct GamePlay {
-    pub state: GamePlayState,
-    pub steps_taken: u32,
-}
-
-/// Time resources
-#[derive(Default)]
-pub struct Time {
-    pub alive: time::Duration,
-}
-
-/// Events that can happen while playing the game
+#[derive(Debug)]
 pub enum GamePlayEvent {
     HitObstacle,
     EntityMoved(legion::Entity),
     BoxSpacedOnSpot(bool),
 }
 
-/// Queue of the events that were generated
+#[derive(Debug)]
+pub struct GamePlay {
+    pub state: GamePlayState,
+    pub steps_taken: u32,
+}
+
+impl Default for GamePlay {
+    fn default() -> Self {
+        Self {
+            state: GamePlayState::Playing,
+            steps_taken: 0,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct GamePlayEventQueue {
     pub queue: Vec<GamePlayEvent>,
 }
 
-/// Mapping to the audio file
+#[derive(Default)]
+pub struct KeyPressedEventQueue {
+    pub queue: Vec<keyboard::KeyCode>,
+}
+
 #[derive(Default)]
 pub struct AudioStore {
     sounds: colls::HashMap<String, audio::Source>,
@@ -65,7 +69,6 @@ impl AudioStore {
         Ok(())
     }
 
-    /// Play the audio asset at the given index
     pub fn play_sound(&mut self, sound_path: &str) {
         if let Some(sound) = self.sounds.get_mut(sound_path) {
             if sound.play_detached().is_err() { /* ignore */ };
@@ -73,7 +76,6 @@ impl AudioStore {
     }
 }
 
-/// Mapping to the image
 #[derive(Default)]
 pub struct DrawableStore {
     images: colls::HashMap<String, graphics::Image>,
@@ -92,7 +94,6 @@ impl DrawableStore {
         Ok(())
     }
 
-    /// Play the audio asset at the given index
     pub fn get_image(&self, image_path: &str) -> Option<&graphics::Image> {
         self.images.get(image_path)
     }
