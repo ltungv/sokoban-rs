@@ -2,7 +2,6 @@ use ggez::audio::{self, SoundSource};
 use ggez::graphics;
 use ggez::input::keyboard;
 
-use std::collections as colls;
 use std::time;
 
 #[derive(Debug, Default)]
@@ -59,7 +58,7 @@ pub struct KeyPressedEventQueue {
 
 #[derive(Default)]
 pub struct AudioStore {
-    sounds: colls::HashMap<String, audio::Source>,
+    sounds: std::collections::HashMap<String, audio::Source>,
 }
 
 impl AudioStore {
@@ -71,14 +70,14 @@ impl AudioStore {
 
     pub fn play_sound(&mut self, sound_path: &str) {
         if let Some(sound) = self.sounds.get_mut(sound_path) {
-            if sound.play_detached().is_err() { /* ignore */ };
+            if sound.play_detached().is_err() {}
         }
     }
 }
 
 #[derive(Default)]
 pub struct DrawableStore {
-    images: colls::HashMap<String, graphics::Image>,
+    images: std::collections::HashMap<String, graphics::Image>,
 }
 
 impl DrawableStore {

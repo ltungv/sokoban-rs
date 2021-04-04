@@ -1,30 +1,26 @@
 use ggez::mint;
 
-/// Determines whether an entity can be animated
+/// This component determines if a renderable entity is rendered with a single resource (static)
+/// it is rendered with multiple sources (animated).
 pub enum RenderableKind {
     Static,
     Animated,
 }
 
-/// Contains a list of objects that can be drawn to screen to represent an entity
+/// A renderable entity can be drawn on to the game screen.
 pub struct Renderable {
     paths: Vec<String>,
 }
 
 impl Renderable {
-    /// Create a new `Drawable` components that can not be animated
-    pub fn new_static(path: &str) -> Self {
-        Self {
-            paths: vec![path.to_string()],
-        }
+    pub fn new_static(path: String) -> Self {
+        Self { paths: vec![path] }
     }
 
-    /// Create a new `Drawable` components that can be animated using the list of sprites
     pub fn new_animated(paths: Vec<String>) -> Self {
         Self { paths }
     }
 
-    /// Return whether the `Renderable` is static or animated
     pub fn kind(&self) -> RenderableKind {
         match self.paths.len() {
             0 => panic!("Invalid RenderableKind"),
@@ -33,44 +29,44 @@ impl Renderable {
         }
     }
 
-    /// Return the `Drawable` object at the given index
     pub fn path(&self, idx: usize) -> &str {
         &self.paths[idx % self.paths.len()]
     }
 }
 
-/// Determines the position of an entity on the game map
+/// Position of the entity in the game world. The z-axis determines whether a renderable entity
+/// is drawn onto or below another renderable entity.
 pub type Position = mint::Point3<u8>;
 
-/// Determines the color of a `Box` or `BoxSpot`
+/// This component determines the color of a box archetype.
 #[derive(PartialEq)]
 pub enum BoxColor {
     Blue,
     Red,
 }
 
-/// Marks an entity to be a box
+/// Marker represents a box in sokoban.
 pub struct Box {
     pub color: BoxColor,
 }
 
-/// Marks an entity to be a location where a box can be put into
+/// Marker represents a box destination in sokoban.
 pub struct BoxSpot {
     pub color: BoxColor,
 }
 
-/// Marks an entity to be a player
+/// Marker represents a player in sokoban.
 #[derive(Default)]
 pub struct Player;
 
-/// Marks an entity to be a wall
+/// Marker represents a wall in sokoban.
 #[derive(Default)]
 pub struct Wall;
 
-/// Marks an entity to be movable
+/// A moveable entity can be moved by the player.
 #[derive(Default)]
 pub struct Movable;
 
-/// Marks an entity to be immovable
+/// A moveable entity can not be moved by the player.
 #[derive(Default)]
 pub struct Immovable;

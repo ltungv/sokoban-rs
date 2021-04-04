@@ -9,9 +9,6 @@ mod game;
 mod resources;
 mod systems;
 
-pub const ARENA_WIDTH: f32 = 720.0;
-pub const ARENA_HEIGHT: f32 = game::MAP_HEIGHT as f32 * game::TILE_HEIGHT;
-
 /// Load the game's resources and initialize the game. The path to the resources
 /// is relative to the directory that contains the project's manifest, otherwise,
 /// it is relative to the current position where the project is run.
@@ -39,7 +36,7 @@ fn main() -> ggez::GameResult {
 
     let (ctx, evts_loop) = &mut ggez::ContextBuilder::new("sokoban", "tlv")
         .window_setup(conf::WindowSetup::default().title("Sokoban"))
-        .window_mode(conf::WindowMode::default().dimensions(ARENA_WIDTH, ARENA_HEIGHT))
+        .window_mode(conf::WindowMode::default().dimensions(game::ARENA_WIDTH, game::ARENA_HEIGHT))
         .add_resource_path(&resource_dir)
         .build()?;
     let game = &mut game::Game::new(ctx, MAP)?;
