@@ -149,36 +149,32 @@ pub fn input_handling(
     #[resource] gameplay_events: &mut resources::GamePlayEventQueue,
     #[resource] gameplay: &mut resources::GamePlay,
 ) {
-    type PositionEntityHashMap = collections::HashMap<(u8, u8), legion::Entity>;
-    type MovableArchetype<'a> = (
-        &'a components::Movable,
-        &'a components::Position,
-        legion::Entity,
-    );
-    type ImmovableArchetype<'a> = (
-        &'a components::Immovable,
-        &'a components::Position,
-        legion::Entity,
-    );
-    type PlayerArchetype<'a> = (&'a components::Player, &'a components::Position);
+    let mut query_movables =
+        <(&components::Movable, &components::Position, legion::Entity)>::query();
 
-    // Get all movable entities
-    let movables = <MovableArchetype>::query()
+    let movables = query_movables
         .iter(world)
         .map(|(_m, position, entity)| ((position.x, position.y), *entity))
-        .collect::<PositionEntityHashMap>();
-    // Get all immovable entities
-    let immovables = <ImmovableArchetype>::query()
+        .collect::<collections::HashMap<(u8, u8), legion::Entity>>();
+
+    let mut query_immovables = <(
+        &components::Immovable,
+        &components::Position,
+        legion::Entity,
+    )>::query();
+
+    let immovables = query_immovables
         .iter(world)
         .map(|(_m, position, entity)| ((position.x, position.y), *entity))
-        .collect::<PositionEntityHashMap>();
+        .collect::<collections::HashMap<(u8, u8), legion::Entity>>();
 
     // Iterate through all entities starting from the player's position on the game map
     // and moving along the axis that is defined by the keyboard input, and check for each
     // entity if it can be moved
-    let mut to_move = Vec::new();
-    for (_p, player_position) in <PlayerArchetype>::query().iter(world) {
-        if let Some(keycode) = key_pressed_events.queue.pop() {
+    if let Some(keycode) = key_pressed_events.queue.pop() {
+        let mut to_move = Vec::new();
+        let mut query_player = <(&components::Player, &components::Position)>::query();
+        for (_p, player_position) in query_player.iter(world) {
             // Determine the range and axis to move along base on the input
             let (start, end, is_xaxis) = match keycode {
                 keyboard::KeyCode::Up => (player_position.y, 0, false),
@@ -203,7 +199,7 @@ pub fn input_handling(
 
                 match movables.get(&pos) {
                     // If encounter a movable entity, add it to list of movable entities
-                    Some(movable) => to_move.push((keycode, movable)),
+                    Some(movable) => to_move.push(movable),
                     // Otherwise, check if the entity is immovable
                     None => {
                         if immovables.get(&pos).is_some() {
@@ -217,25 +213,25 @@ pub fn input_handling(
                 }
             }
         }
-    }
 
-    if !to_move.is_empty() {
-        gameplay.steps_taken += 1;
-    }
+        if !to_move.is_empty() {
+            gameplay.steps_taken += 1;
+        }
 
-    // Move all entities that can be moved
-    for (keycode, movable) in to_move {
-        gameplay_events
-            .queue
-            .push(resources::GamePlayEvent::EntityMoved(*movable));
-        if let Ok(mut entry) = world.entry_mut(*movable) {
-            if let Ok(mut position) = entry.get_component_mut::<components::Position>() {
-                match keycode {
-                    keyboard::KeyCode::Up => position.y = position.y.saturating_sub(1),
-                    keyboard::KeyCode::Down => position.y = position.y.saturating_add(1),
-                    keyboard::KeyCode::Left => position.x = position.x.saturating_sub(1),
-                    keyboard::KeyCode::Right => position.x = position.x.saturating_add(1),
-                    _ => continue,
+        // Move all entities that can be moved
+        for movable in to_move {
+            gameplay_events
+                .queue
+                .push(resources::GamePlayEvent::EntityMoved(*movable));
+            if let Ok(mut entry) = world.entry_mut(*movable) {
+                if let Ok(mut position) = entry.get_component_mut::<components::Position>() {
+                    match keycode {
+                        keyboard::KeyCode::Up => position.y = position.y.saturating_sub(1),
+                        keyboard::KeyCode::Down => position.y = position.y.saturating_add(1),
+                        keyboard::KeyCode::Left => position.x = position.x.saturating_sub(1),
+                        keyboard::KeyCode::Right => position.x = position.x.saturating_add(1),
+                        _ => continue,
+                    }
                 }
             }
         }
