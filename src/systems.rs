@@ -249,22 +249,21 @@ pub fn game_objective(
     #[resource] game_play: &mut resources::GamePlay,
 ) {
     let mut boxes_query = <(&components::Box, &components::Position)>::query();
-    let boxes: collections::HashMap<(u8, u8), &components::Box> = boxes_query
+    let boxes = boxes_query
         .iter(world)
         .map(|(b, position)| ((position.x, position.y), b))
-        .collect();
+        .collect::<collections::HashMap<(u8, u8), &components::Box>>();
 
     game_play.state = resources::GamePlayState::Playing;
     let mut box_spots_query = <(&components::BoxSpot, &components::Position)>::query();
     for (box_spot, box_spot_position) in box_spots_query.iter(world) {
-        if let Some(the_box) = boxes.get(&(box_spot_position.x, box_spot_position.y)) {
-            if the_box.color == box_spot.color {
-                continue;
-            } else {
-                return;
+        match boxes.get(&(box_spot_position.x, box_spot_position.y)) {
+            Some(the_box) => {
+                if the_box.color != box_spot.color {
+                    return;
+                }
             }
-        } else {
-            return;
+            None => return,
         }
     }
     game_play.state = resources::GamePlayState::Won;
