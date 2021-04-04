@@ -14,41 +14,50 @@ use crate::components;
 use crate::game::{MAP_HEIGHT, MAP_WIDTH, TILE_HEIGHT, TILE_WIDTH};
 use crate::resources;
 
-/// Draw all renderable entities and information in some resources to screen
+/// Draw all renderable entities and information in some resources to screen by creating render batches
+/// from based on the renderable entity's data.
+///
+/// # Notes
+///
+/// The renderable entities are first separated by their z-axis levels, in each z-axis level, the renderable
+/// entities are then separated by their resource's name. For each resource's name, there is a list of
+/// parameters that specify how all the entities, that depend on the resource, are rendered. This ensures:
+/// + Entities with lower z-axis level are rendered first.
+/// + The images are loaded with minimal access to memory.
 pub fn render_entities(
     ctx: &mut ggez::Context,
     world: &legion::World,
     resources: &legion::Resources,
 ) -> ggez::GameResult {
     if let Some(drawable_store) = resources.get::<resources::DrawableStore>() {
-        // Renderable components to be queried
+        let time_alive = resources
+            .get::<resources::Time>()
+            .and_then(|time| Some(time.alive))
+            .unwrap_or_default();
+
         type RenderableArchetype<'a> = (&'a components::Renderable, &'a components::Position);
-        // Query for getting renderable entities
         let renderable_data = <RenderableArchetype>::query()
             .iter(world)
             .collect::<Vec<RenderableArchetype>>();
-        // Iterate each of the renderables, determine which image path should be rendered
-        // at which draw params, and then add that to the rendering_batches.
+
         let mut renderable_batches =
             colls::HashMap::<u8, colls::HashMap<String, Vec<graphics::DrawParam>>>::new();
 
         for (renderable, position) in renderable_data {
-            // Load the image
-            let time_alive = match resources.get::<resources::Time>() {
-                Some(time) => time.alive,
-                None => std::time::Duration::default(),
-            };
-            let image_path = renderable.path(match renderable.kind() {
+            let image_idx = match renderable.kind() {
                 components::RenderableKind::Static => 0,
                 components::RenderableKind::Animated => {
                     ((time_alive.as_millis() % 2000) / 500) as usize
                 }
-            });
-            // Add to rendering batches
-            let draw_params = graphics::DrawParam::default().dest(mint::Point2 {
+            };
+            let image_path = renderable.path(image_idx);
+
+            let draw_dest = mint::Point2 {
                 x: position.x as f32 * TILE_WIDTH,
                 y: position.y as f32 * TILE_HEIGHT,
-            });
+            };
+            let draw_params = graphics::DrawParam::default().dest(draw_dest);
+
             renderable_batches
                 .entry(position.z)
                 .or_default()
@@ -64,14 +73,14 @@ pub fn render_entities(
             for (image_path, draw_params) in group {
                 if let Some(image) = drawable_store.get_image(image_path) {
                     let mut sprite_batch = spritebatch::SpriteBatch::new(image.clone());
-                    for draw_param in draw_params.iter() {
-                        sprite_batch.add(draw_param.scale(mint::Vector2 {
+                    draw_params.iter().for_each(|p| {
+                        let p = p.scale(mint::Vector2 {
                             x: TILE_WIDTH / image.width() as f32,
                             y: TILE_HEIGHT / image.height() as f32,
-                        }));
-                    }
-                    graphics::draw(ctx, &sprite_batch, graphics::DrawParam::new())
-                        .expect("expected render");
+                        });
+                        sprite_batch.add(p);
+                    });
+                    graphics::draw(ctx, &sprite_batch, graphics::DrawParam::new())?;
                 }
             }
         }
