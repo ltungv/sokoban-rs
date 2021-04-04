@@ -8,7 +8,7 @@ use legion::system;
 use legion::world::EntityStore;
 
 use std::cmp;
-use std::collections as colls;
+use std::collections;
 
 use crate::components;
 use crate::game::{MAP_HEIGHT, MAP_WIDTH, TILE_HEIGHT, TILE_WIDTH};
@@ -40,8 +40,10 @@ pub fn render_entities(
             .iter(world)
             .collect::<Vec<RenderableArchetype>>();
 
-        let mut renderable_batches =
-            colls::HashMap::<u8, colls::HashMap<String, Vec<graphics::DrawParam>>>::new();
+        let mut renderable_batches = collections::HashMap::<
+            u8,
+            collections::HashMap<String, Vec<graphics::DrawParam>>,
+        >::new();
 
         for (renderable, position) in renderable_data {
             let image_idx = match renderable.kind() {
@@ -147,7 +149,7 @@ pub fn input_handling(
     #[resource] gameplay_events: &mut resources::GamePlayEventQueue,
     #[resource] gameplay: &mut resources::GamePlay,
 ) {
-    type PositionEntityHashMap = colls::HashMap<(u8, u8), legion::Entity>;
+    type PositionEntityHashMap = collections::HashMap<(u8, u8), legion::Entity>;
     type MovableArchetype<'a> = (
         &'a components::Movable,
         &'a components::Position,
@@ -251,7 +253,7 @@ pub fn game_objective(
     #[resource] game_play: &mut resources::GamePlay,
 ) {
     let mut boxes_query = <(&components::Box, &components::Position)>::query();
-    let boxes: colls::HashMap<(u8, u8), &components::Box> = boxes_query
+    let boxes: collections::HashMap<(u8, u8), &components::Box> = boxes_query
         .iter(world)
         .map(|(b, position)| ((position.x, position.y), b))
         .collect();
@@ -292,7 +294,7 @@ pub fn consume_gameplay_events(
                         if let Ok(box_position) = entry.get_component::<components::Position>() {
                             let mut box_spots_query =
                                 <(&components::BoxSpot, &components::Position)>::query();
-                            let box_spots: colls::HashMap<(u8, u8), &components::BoxSpot> =
+                            let box_spots: collections::HashMap<(u8, u8), &components::BoxSpot> =
                                 box_spots_query
                                     .iter(world)
                                     .map(|(b, position)| ((position.x, position.y), b))
