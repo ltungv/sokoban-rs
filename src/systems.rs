@@ -88,34 +88,47 @@ pub fn render_entities(
     Ok(())
 }
 
+/// Render the current state of the game and display whether the game's objectives have been accomplished.
+///
+/// # Examples
+///
+/// ```txt
+/// Playing
+/// Moves: 12
+/// FPS: 44.7
+/// ```
 pub fn render_gameplay_data(
     ctx: &mut ggez::Context,
     resources: &legion::Resources,
 ) -> ggez::GameResult {
-    // Show number of moves that have been taken and whether the player has won
     if let Some(game_play) = resources.get::<resources::GamePlay>() {
         let text_color = graphics::Color::new(0.0, 0.0, 0.0, 1.0);
-        let mut text = graphics::Text::default();
-        text.add(graphics::TextFragment::new(game_play.state.to_string()).color(text_color))
-            .add(graphics::TextFragment::new("\n"))
-            .add(
-                graphics::TextFragment::new(format!(
-                    "Moves: {}",
-                    game_play.steps_taken.to_string()
-                ))
-                .color(text_color),
-            )
-            .add(graphics::TextFragment::new("\n"))
-            .add(
-                graphics::TextFragment::new(format!("FPS: {:.2}", ggez::timer::fps(ctx)))
-                    .color(text_color),
-            );
 
-        let text_draw_dest = mint::Point2 {
+        let txt_gameplay_state =
+            graphics::TextFragment::new(game_play.state.to_string()).color(text_color);
+        let txt_steps_taken =
+            graphics::TextFragment::new(format!("Moves: {}", game_play.steps_taken.to_string()))
+                .color(text_color);
+        let txt_fps = graphics::TextFragment::new(format!("FPS: {:.2}", ggez::timer::fps(ctx)))
+            .color(text_color);
+
+        let mut text = graphics::Text::default();
+        text
+            // State of the game: PLAYING | WON.
+            .add(txt_gameplay_state)
+            .add(graphics::TextFragment::new("\n"))
+            // Number of moves that have been made.
+            .add(txt_steps_taken)
+            .add(graphics::TextFragment::new("\n"))
+            // Number of frames per second that the game is rendered at.
+            .add(txt_fps);
+
+        let draw_dest = mint::Point2 {
             x: TILE_WIDTH * MAP_WIDTH as f32 + 50.0,
             y: (TILE_HEIGHT * MAP_HEIGHT as f32 - text.dimensions(ctx).1 as f32) / 2.0,
         };
-        let draw_params = graphics::DrawParam::new().dest(text_draw_dest);
+        let draw_params = graphics::DrawParam::new().dest(draw_dest);
+
         graphics::draw(ctx, &text, draw_params)?;
     }
     Ok(())
