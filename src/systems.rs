@@ -285,22 +285,21 @@ pub fn consume_gameplay_events(
             resources::GamePlayEvent::HitObstacle => audio_store.play_sound("/sounds/wall.wav"),
             resources::GamePlayEvent::EntityMoved(entity) => {
                 if let Ok(entry) = world.entry_ref(entity) {
-                    if let Ok(the_box) = entry.get_component::<components::Box>() {
-                        if let Ok(box_position) = entry.get_component::<components::Position>() {
-                            let mut box_spots_query =
-                                <(&components::BoxSpot, &components::Position)>::query();
-                            let box_spots: collections::HashMap<(u8, u8), &components::BoxSpot> =
-                                box_spots_query
-                                    .iter(world)
-                                    .map(|(b, position)| ((position.x, position.y), b))
-                                    .collect();
-                            if let Some(box_spot) = box_spots.get(&(box_position.x, box_position.y))
-                            {
-                                new_events.push(resources::GamePlayEvent::BoxSpacedOnSpot(
-                                    box_spot.color == the_box.color,
-                                ));
-                            }
-                        }
+                    if let (Ok(the_box), Ok(box_pos)) = (
+                        entry.get_component::<components::Box>(),
+                        entry.get_component::<components::Position>(),
+                    ) {
+                        let mut box_spots_query =
+                            <(&components::BoxSpot, &components::Position)>::query();
+                        box_spots_query
+                            .iter(world)
+                            .for_each(|(box_spot, box_spot_pos)| {
+                                if box_pos.x == box_spot_pos.x && box_pos.y == box_spot_pos.y {
+                                    new_events.push(resources::GamePlayEvent::BoxSpacedOnSpot(
+                                        box_spot.color == the_box.color,
+                                    ));
+                                }
+                            });
                     }
                 }
             }
