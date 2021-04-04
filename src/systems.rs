@@ -35,38 +35,35 @@ pub fn render_entities(
             .and_then(|time| Some(time.alive))
             .unwrap_or_default();
 
-        type RenderableArchetype<'a> = (&'a components::Renderable, &'a components::Position);
-        let renderable_data = <RenderableArchetype>::query()
-            .iter(world)
-            .collect::<Vec<RenderableArchetype>>();
-
         let mut renderable_batches = collections::HashMap::<
             u8,
             collections::HashMap<String, Vec<graphics::DrawParam>>,
         >::new();
 
-        for (renderable, position) in renderable_data {
-            let image_idx = match renderable.kind() {
-                components::RenderableKind::Static => 0,
-                components::RenderableKind::Animated => {
-                    ((time_alive.as_millis() % 2000) / 500) as usize
-                }
-            };
-            let image_path = renderable.path(image_idx);
+        <(&components::Renderable, &components::Position)>::query()
+            .iter(world)
+            .for_each(|(renderable, position)| {
+                let image_idx = match renderable.kind() {
+                    components::RenderableKind::Static => 0,
+                    components::RenderableKind::Animated => {
+                        ((time_alive.as_millis() % 2000) / 500) as usize
+                    }
+                };
+                let image_path = renderable.path(image_idx);
 
-            let draw_dest = mint::Point2 {
-                x: position.x as f32 * TILE_WIDTH,
-                y: position.y as f32 * TILE_HEIGHT,
-            };
-            let draw_params = graphics::DrawParam::default().dest(draw_dest);
+                let draw_dest = mint::Point2 {
+                    x: position.x as f32 * TILE_WIDTH,
+                    y: position.y as f32 * TILE_HEIGHT,
+                };
+                let draw_params = graphics::DrawParam::default().dest(draw_dest);
 
-            renderable_batches
-                .entry(position.z)
-                .or_default()
-                .entry(image_path.to_string())
-                .or_default()
-                .push(draw_params);
-        }
+                renderable_batches
+                    .entry(position.z)
+                    .or_default()
+                    .entry(image_path.to_string())
+                    .or_default()
+                    .push(draw_params);
+            });
 
         for (_z, group) in renderable_batches
             .iter()
@@ -137,7 +134,11 @@ pub fn render_gameplay_data(
 }
 
 /// Consume key pressed events from queue and modify the player's sprite position
-/// based on the received keycode
+/// based on the received keycode. If a player pushes a moveable item into an
+/// immovable item, then both the player and the moveable item will not change
+/// position. If a player pushes a moveable item into another moveable item or
+/// an empty position, then the player and all the moveable items will change
+/// position
 #[system]
 #[read_component(components::Player)]
 #[read_component(components::Movable)]
@@ -173,46 +174,48 @@ pub fn input_handling(
     // entity if it can be moved
     if let Some(keycode) = key_pressed_events.queue.pop() {
         let mut to_move = Vec::new();
-        let mut query_player = <(&components::Player, &components::Position)>::query();
-        for (_p, player_position) in query_player.iter(world) {
-            // Determine the range and axis to move along base on the input
-            let (start, end, is_xaxis) = match keycode {
-                keyboard::KeyCode::Up => (player_position.y, 0, false),
-                keyboard::KeyCode::Down => (player_position.y, MAP_HEIGHT, false),
-                keyboard::KeyCode::Left => (player_position.x, 0, true),
-                keyboard::KeyCode::Right => (player_position.x, MAP_WIDTH, true),
-                _ => continue,
-            };
 
-            let range = if start < end {
-                (start..=end).collect::<Vec<_>>()
-            } else {
-                (end..=start).rev().collect::<Vec<_>>()
-            };
-
-            for x_or_y in range {
-                let pos = if is_xaxis {
-                    (x_or_y, player_position.y)
-                } else {
-                    (player_position.x, x_or_y)
+        <(&components::Player, &components::Position)>::query()
+            .iter(world)
+            .for_each(|(_p, player_pos)| {
+                // Determine the range and axis to move along base on the input
+                let (start, end, is_xaxis) = match keycode {
+                    keyboard::KeyCode::Up => (player_pos.y, 0, false),
+                    keyboard::KeyCode::Down => (player_pos.y, MAP_HEIGHT, false),
+                    keyboard::KeyCode::Left => (player_pos.x, 0, true),
+                    keyboard::KeyCode::Right => (player_pos.x, MAP_WIDTH, true),
+                    _ => return,
                 };
 
-                match movables.get(&pos) {
-                    // If encounter a movable entity, add it to list of movable entities
-                    Some(movable) => to_move.push(movable),
-                    // Otherwise, check if the entity is immovable
-                    None => {
-                        if immovables.get(&pos).is_some() {
-                            gameplay_events
-                                .queue
-                                .push(resources::GamePlayEvent::HitObstacle);
-                            to_move.clear();
+                let range = if start < end {
+                    (start..=end).collect::<Vec<_>>()
+                } else {
+                    (end..=start).rev().collect::<Vec<_>>()
+                };
+
+                for x_or_y in range {
+                    let pos = if is_xaxis {
+                        (x_or_y, player_pos.y)
+                    } else {
+                        (player_pos.x, x_or_y)
+                    };
+
+                    match movables.get(&pos) {
+                        // If encounter a movable entity, add it to list of movable entities
+                        Some(movable) => to_move.push(movable),
+                        // Otherwise, check if the entity is immovable
+                        None => {
+                            if immovables.get(&pos).is_some() {
+                                gameplay_events
+                                    .queue
+                                    .push(resources::GamePlayEvent::HitObstacle);
+                                to_move.clear();
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
-            }
-        }
+            });
 
         if !to_move.is_empty() {
             gameplay.steps_taken += 1;
