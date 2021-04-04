@@ -283,37 +283,36 @@ pub fn consume_gameplay_events(
     #[resource] audio_store: &mut resources::AudioStore,
 ) {
     let mut new_events = Vec::new();
-    for event in gameplay_events.queue.drain(..) {
-        match event {
-            resources::GamePlayEvent::HitObstacle => audio_store.play_sound("/sounds/wall.wav"),
-            resources::GamePlayEvent::EntityMoved(entity) => {
-                if let Ok(entry) = world.entry_ref(entity) {
-                    if let (Ok(the_box), Ok(box_pos)) = (
-                        entry.get_component::<components::Box>(),
-                        entry.get_component::<components::Position>(),
-                    ) {
-                        let mut box_spots_query =
-                            <(&components::BoxSpot, &components::Position)>::query();
-                        box_spots_query
-                            .iter(world)
-                            .for_each(|(box_spot, box_spot_pos)| {
-                                if box_pos.x == box_spot_pos.x && box_pos.y == box_spot_pos.y {
-                                    new_events.push(resources::GamePlayEvent::BoxSpacedOnSpot(
-                                        box_spot.color == the_box.color,
-                                    ));
-                                }
-                            });
-                    }
+    gameplay_events.queue.drain(..).for_each(|evt| match evt {
+        resources::GamePlayEvent::HitObstacle => audio_store.play_sound("/sounds/wall.wav"),
+        resources::GamePlayEvent::EntityMoved(entity) => {
+            if let Ok(entry) = world.entry_ref(entity) {
+                if let (Ok(the_box), Ok(box_pos)) = (
+                    entry.get_component::<components::Box>(),
+                    entry.get_component::<components::Position>(),
+                ) {
+                    let mut box_spots_query =
+                        <(&components::BoxSpot, &components::Position)>::query();
+                    box_spots_query
+                        .iter(world)
+                        .for_each(|(box_spot, box_spot_pos)| {
+                            if box_pos.x == box_spot_pos.x && box_pos.y == box_spot_pos.y {
+                                new_events.push(resources::GamePlayEvent::BoxSpacedOnSpot(
+                                    box_spot.color == the_box.color,
+                                ));
+                            }
+                        });
                 }
             }
-            resources::GamePlayEvent::BoxSpacedOnSpot(is_same_color) => {
-                audio_store.play_sound(if is_same_color {
-                    "/sounds/correct.wav"
-                } else {
-                    "/sounds/incorrect.wav"
-                })
-            }
         }
-    }
+        resources::GamePlayEvent::BoxSpacedOnSpot(is_same_color) => {
+            audio_store.play_sound(if is_same_color {
+                "/sounds/correct.wav"
+            } else {
+                "/sounds/incorrect.wav"
+            })
+        }
+    });
+
     gameplay_events.queue.append(&mut new_events);
 }
